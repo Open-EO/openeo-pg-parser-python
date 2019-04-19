@@ -12,6 +12,13 @@ Description
 A longer description of your project goes here...
 
 
+Installation
+============
+
+Install the eoDataReaders environment, as described here: https://git.eodc.eu/eodc/eoDataReaders/blob/master/README.rst
+
+
+
 Note
 ====
 
