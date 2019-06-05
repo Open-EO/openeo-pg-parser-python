@@ -37,31 +37,31 @@
       "cube2": {"from_node": "s1b"}
     }
   },
+  "s1_mask": {
+    "process_id": "apply",
+    "description": "",
+    "arguments": {
+      "data": {"from_node": "s1"},
+      "process": {
+        "callback": {
+          "process_id": "eq",
+          "description": "",
+          "arguments": {
+            "x": {"from_argument": "x"},
+            "y": "-9999"
+          },
+          "result": true
+        }
+      }
+    }
+  },
   "s1_masked": {
     "process_id": "mask",
     "description": "mask data",
     "arguments": {
       "data": {"from_node": "s1"},
-      "mask": {
-        "callback": {
-          "process_id": "apply",
-          "description": "",
-          "arguments": {
-            "data": {"from_node": "s1"},
-            "process": {
-              "callback": {
-                "process_id": "eq",
-                "description": "",
-                "arguments": {
-                  "x": {"from_argument": "data"},
-                  "y": "-9999"
-                }
-              }
-            }
-          }
-        }
+      "mask": {"from_node": "s1_mask"}
       }
-    }
   },
   "vv_vh": {
     "process_id": "reduce",
@@ -92,8 +92,7 @@
             }
           }
         }
-      },
-      "binary": "True"
+      }
     }
   },
   "vv_vh2": {
@@ -136,38 +135,71 @@
           "arguments": {
             "data": {"from_argument": "data"}
           },
-          "result": "True"
+          "result": true
         }
       }
+    }
+  },
+  "s1_march": {
+    "process_id": "filter_temporal",
+    "process_description": "Get march data",
+    "arguments": {
+      "data": {"from_node": "s1_monthly"},
+      "extent": "mar"
+    }
+  },
+  "s1_apr": {
+    "process_id": "filter_temporal",
+    "process_description": "Get april data",
+    "arguments": {
+      "data": {"from_node": "s1_monthly"},
+      "extent": "apr"
+    }
+  },
+  "s1_may": {
+    "process_id": "filter_temporal",
+    "process_description": "Get may data",
+    "arguments": {
+      "data": {"from_node": "s1_monthly"},
+      "extent": "may"
+    }
+  },
+  "R_vv": {
+    "process_id": "filter_bands",
+    "process_description": "Get march data for polarization vv",
+    "arguments": {
+      "data": {"from_node": "s1_march"},
+      "bands": ["vv"]
+    }
+  },
+  "G_vh": {
+    "process_id": "filter_bands",
+    "process_description": "Get april data for polarization vv",
+    "arguments": {
+      "data": {"from_node": "s1_apr"},
+      "bands": ["vh"]
+    }
+  },
+  "B_vv_vh": {
+    "process_id": "filter_bands",
+    "process_description": "Get may data for polarization vv",
+    "arguments": {
+      "data": {"from_node": "s1_may"},
+      "bands": ["vv_vh"]
     }
   },
   "R_vv_scaled": {
     "process_id": "apply",
     "description": "",
     "arguments": {
-      "data": {
+      "data": {"from_node": "R_vv"},
+      "process": {
         "callback": {
           "process_id": "linear_scale_range",
           "description": "",
           "arguments": {
             "x": {
-              "callback": {
-                "process_id": "filter_bands",
-                "process_description": "Get march data for polarization vv",
-                "arguments": {
-                  "data": {
-                    "callback": {
-                      "process_id": "filter_temporal",
-                      "process_description": "Get march data",
-                      "arguments": {
-                        "data": {"from_node": "s1_monthly"},
-                        "extent": "mar"
-                      }
-                    }
-                  },
-                  "bands": ["vv"]
-                }
-              }
+              "from_argument": "x"
             },
             "inputMin": "-2000",
             "inputMax": "-1000",
@@ -182,29 +214,14 @@
     "process_id": "apply",
     "description": "",
     "arguments": {
-      "data": {
+      "data": {"from_node": "G_vh"},
+      "process": {
         "callback": {
           "process_id": "linear_scale_range",
           "description": "",
           "arguments": {
             "x": {
-              "callback": {
-                "process_id": "filter_bands",
-                "process_description": "Get april data for polarization vh",
-                "arguments": {
-                  "data": {
-                    "callback": {
-                      "process_id": "filter_temporal",
-                      "process_description": "Get april data",
-                      "arguments": {
-                        "data": {"from_node": "s1_monthly"},
-                        "extent": "apr"
-                      }
-                    }
-                  },
-                  "bands": ["vh"]
-                }
-              }
+              "from_argument": "x"
             },
             "inputMin": "-2000",
             "inputMax": "-1000",
@@ -219,29 +236,14 @@
     "process_id": "apply",
     "description": "",
     "arguments": {
-      "data": {
+      "data": {"from_node": "B_vv_vh"},
+      "process": {
         "callback": {
           "process_id": "linear_scale_range",
           "description": "",
           "arguments": {
             "x": {
-              "callback": {
-                "process_id": "filter_bands",
-                "process_description": "Get may data for polarization vv/vh",
-                "arguments": {
-                  "data": {
-                    "callback": {
-                      "process_id": "filter_temporal",
-                      "process_description": "Get may data",
-                      "arguments": {
-                        "data": {"from_node": "s1_monthly"},
-                        "extent": "may"
-                      }
-                    }
-                  },
-                  "bands": ["vv_vh"]
-                }
-              }
+              "from_argument": "x"
             },
             "inputMin": "0.2",
             "inputMax": "0.6",
@@ -252,18 +254,33 @@
       }
     }
   },
-  "RGB": {
+  "RG": {
     "process_id": "merge_cubes",
     "process_description": "Merging two data cubes",
     "arguments": {
       "cube1": {"from_node": "R_vv_scaled"},
-      "cube2": {
+      "cube2": {"from_node": "G_vh_scaled"}
+    }
+  },
+  "RGB": {
+    "process_id": "merge_cubes",
+    "process_description": "Merging two data cubes",
+    "arguments": {
+      "cube1": {"from_node": "RG"},
+      "cube2": {"from_node": "B_vv_vh_scaled"}
+    }
+  },
+  "RGB_mask": {
+    "process_id": "apply",
+    "description": "",
+    "arguments": {
+      "data": {"from_node": "RGB"},
+      "process": {
         "callback": {
-          "process_id": "merge_cubes",
-          "process_description": "Merging two data cubes",
+          "process_id": "is_nan",
+          "description": "",
           "arguments": {
-            "cube1": {"from_node": "G_vh_scaled"},
-            "cube2": {"from_node": "B_vv_vh_scaled"}
+            "x": {"from_argument": "x"}
           }
         }
       }
@@ -274,24 +291,7 @@
     "description": "Set nans to 255.",
     "arguments": {
       "data": {"from_node": "RGB"},
-      "mask": {
-        "callback": {
-          "process_id": "apply",
-          "description": "",
-          "arguments": {
-            "data": {"from_node": "RGB"},
-            "process": {
-              "callback": {
-                "process_id": "is_nan",
-                "description": "",
-                "arguments": {
-                  "x": {"from_argument": "data"}
-                }
-              }
-            }
-          }
-        }
-      },
+      "mask": {"from_node": "RGB_mask"},
       "replacement": "255"
     }
   },

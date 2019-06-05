@@ -1,4 +1,5 @@
 import copy
+import secrets
 import numpy as np
 from json import load
 from pprint import pformat
@@ -6,11 +7,13 @@ from collections import OrderedDict
 
 
 class Node(object):
-    def __init__(self, id=None, name=None, graph=None, edges=None):
+    def __init__(self, id=None, name=None, graph=None, edges=None, parent_nodes=None, child_nodes=None):
         self.id = id
         self.name = name
         self.graph = graph
         self.edges = edges
+        self.parent_nodes = parent_nodes
+        self.child_nodes = child_nodes
 
     def __repr__(self):
         pass
@@ -21,6 +24,12 @@ class Node(object):
 
         return repr_str
 
+# class ProcessingNode(Node):
+#     def __init__(self, ):
+#         super(ProcessingNode).__init__(id, name, graph)
+#
+#     @classmethod
+#     def from_node(cls, node):
 
 class Edge(object):
     def __init__(self, id=None, name=None, nodes=None):
@@ -61,217 +70,114 @@ class Graph(object):
         return repr_str
 
 
-def walkdict(data, keys_tree=None, keys_branch=None, counter=0, prev_counter=0):
-    for k, v in data.items():
-        if isinstance(v, dict):
-            if keys_branch is None:
-                keys_branch = []
-            keys_branch.append(k)
-            counter += 1
-            prev_counter = counter
-            keys_tree, keys_branch, counter, prev_counter = walkdict(v, keys_tree=keys_tree, keys_branch=keys_branch,
-                                                                     counter=counter, prev_counter=prev_counter)
+def walk_pg_graph(nodes, data, node_ids=[], level=0, prev_level=0):
+    for key, value in data.items():
+        if isinstance(value, dict):
+            if "process_id" in value.keys():
+                token = secrets.token_hex(nbytes=8)
+                node_id = "_".join([key, token])
+                node = Node(id=node_id, name=key, graph=value, edges=[])
+                if node_ids:
+                    filtered_node_ids = [prev_node_id for prev_node_id in node_ids if prev_node_id]
+                    parent_node = nodes[filtered_node_ids[-1]]
+                    edge_nodes = [parent_node, node]
+                    edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
+                    edge = Edge(id=edge_id, nodes=edge_nodes)
+                    node.edges.append(edge)
+                nodes[node_id] = node
+            else:
+                node_id = None
 
-    counter += -1
-    if keys_tree is None:
-        keys_tree = []
-    if keys_branch not in keys_tree and keys_branch != []:
-        if (counter - prev_counter) == -1:
-            keys_tree.append(keys_branch)
-        keys_branch = keys_branch[:-1]
+            node_ids.append(node_id)
+            prev_level = level
+            level += 1
+            nodes, node_ids, level, prev_level = walk_pg_graph(nodes, value, node_ids=node_ids, level=level,
+                                                               prev_level=prev_level)
 
-    return keys_tree, keys_branch, counter, prev_counter
+    level += -1
+    if node_ids:
+        node_ids = node_ids[:-1]
 
-
-def find_parent_leafs(forest, tree_id, leaf_id, links):
-    tree_nodes = np.array([node for node in forest.nodes.values() if (tree_id == forest.tree_ids[node.id])])
-    tree_nodes_leaf_id = np.array([forest.leaf_ids[tree_node.id] for tree_node in tree_nodes])
-    tree_nodes = tree_nodes[tree_nodes_leaf_id < leaf_id]
-    tree_nodes_leaf_id = tree_nodes_leaf_id[tree_nodes_leaf_id < leaf_id]
-    sort_idxs = np.argsort(tree_nodes_leaf_id)
-    tree_nodes = tree_nodes[sort_idxs]
-    tree_nodes = tree_nodes.tolist()
-    parent_nodes = [tree_nodes[0]]
-
-    if len(tree_nodes) > 1:
-        link_idx = 0
-        for i, tree_node in enumerate(tree_nodes):
-            parent_node = parent_nodes[-1]
-            edge_id = "{}__{}__{}".format(parent_node.id, links[link_idx], tree_node.id)
-            if edge_id in forest.edges.keys():
-                parent_nodes.append(tree_node)
-                link_idx += 1
-
-    return parent_nodes
+    return nodes, node_ids, level, prev_level
 
 
-def create_links(branch_keys):
-    links = []
-    for i in range(1, len(branch_keys)):
-        if branch_keys[i-1] == 'arguments':
-            links.append(branch_keys[i])
+def validate_pg_graph():
+    pass
 
-    return links
+def from_node(nodes, node_name):
+    for node in nodes:
+        if node.name == node_name:
+            return node
+
+    return None
+
+def find_siblings(nodes, node):
+    siblings = []
+    for node_other in nodes:
+        if node_other.id != node.id:
+            if node.parent_nodes[-1].id == node_other.parent_nodes[-1].id:
+                siblings.append(node)
+
+    return siblings
 
 
-def from_node(forest, node_name):
-    node_id = None
-    for node_other in forest.nodes.values():
-        if node_other.name == node_name:
-            node_id = node_other.id
-
-    return node_id
-
-
-# TODO: check if two argument parsing parts are necessary
-def from_argument(forest, tree_id, leaf_id, links, link_name):
-    parent_node_id = None
-    parent_nodes = find_parent_leafs(forest, tree_id, leaf_id, links)
-    # if from argument is linked inside the same tree
-    for i in range(1, len(parent_nodes)):
-        parent_edge_id = "{}__{}__{}".format(parent_nodes[i-1].id, link_name, parent_nodes[i].id)
-        if parent_edge_id in forest.edges.keys():
-            parent_node_id = parent_nodes[i-1].id
-            break
-
-    # if from argument contains node from other tree
-    if not parent_node_id:
-        for parent_node in parent_nodes:
-            if 'arguments' in parent_node.graph.keys():
-                if link_name in parent_node.graph['arguments'].keys():
-                    if 'from_node' in parent_node.graph['arguments'][link_name]:
-                        node_id = parent_node.graph['arguments'][link_name]['from_node']
-                        if node_id not in forest.nodes.keys():
-                            parent_node_id = from_node(forest, node_id)
+# TODO: code is repeated twice, outsource it to function
+def link_nodes(nodes):
+    # fill in all from_node parameters and create edges
+    for node in nodes.values():
+        siblings = find_siblings(nodes, node)
+        for arg in node.graph['arguments'].keys():
+            data_arg = node.graph['arguments'][arg]
+            if not isinstance(data_arg, list):
+                data_arg = [data_arg]
+            for i, data_entry in enumerate(data_arg):
+                if 'from_node' in data_entry.keys():
+                    node_other = from_node(siblings, data_entry['from_node'])
+                    if node_other:
+                        if len(data_arg) > 1:
+                            node.graph['arguments'][arg][i]['from_node'] = node_other.id
                         else:
-                            parent_node_id = node_id
-                        break
+                            node.graph['arguments'][arg]['from_node'] = node_other.id
+                        edge_nodes = [node_other, node]
+                        edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
+                        edge = Edge(id=edge_id, nodes=edge_nodes)
+                        node.edges.append(edge)
+                    else:
+                        raise Exception('') # TODO
 
-    return parent_node_id
+    # fill in all from_argument parameters
+    # TODO: keep binary behaviour in mind
+    for node in nodes.values():
+        for arg in node.graph['arguments'].keys():
+            data_arg = node.graph['arguments'][arg]
+            if not isinstance(data_arg, list):
+                data_arg = [data_arg]
+            for i, data_entry in enumerate(data_arg):
+                if 'from_argument' in data_entry.keys():
+                    node_other =
+                    if node_other:
+                        if len(data_arg) > 1:
+                            node.graph['arguments'][arg][i]['from_node'] = node_other.id
+                        else:
+                            node.graph['arguments'][arg]['from_node'] = node_other.id
+                        edge_nodes = [node_other, node]
+                        edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
+                        edge = Edge(id=edge_id, nodes=edge_nodes)
+                        node.edges.append(edge)
+                    else:
+                        raise Exception('') # TODO
 
 
-# TODO: should this be a class function?
-def update_sub_graphs(forest):
-    for edge in forest.edges.values():
-        same_tree = forest.tree_ids[edge.node_ids[0]] == forest.tree_ids[edge.node_ids[1]]
-        same_leaf = forest.leaf_ids[edge.node_ids[0]] == forest.leaf_ids[edge.node_ids[1]]
-        if same_tree and not same_leaf:
-            node = forest.nodes[edge.node_ids[0]]
-            node.graph['arguments'][edge.name] = {'from_node': edge.node_ids[1]}
-            forest.nodes[node.id] = node
-
-    return forest
 
 
 def translate(pg_filepath):
     pg_dict = load(open(pg_filepath))
-    keys_tree, _, _, _ = walkdict(pg_dict)
-    # create graph and sub_graph
     nodes = OrderedDict()
-    edges = OrderedDict()
-    tree_ids = OrderedDict()
-    branch_ids = OrderedDict()
-    leaf_ids = OrderedDict()
-    forest = Graph(nodes=nodes, edges=edges, tree_ids=tree_ids, branch_ids=branch_ids, leaf_ids=leaf_ids)
-    # iterate over graph dictionary keys
-    prev_keys_branches = []
-    tree_id = 0
-    branch_id = 0
-    for keys_branch in keys_tree:
-        branch_id += 1
-        stem_level = -1
-
-        branches_ignore = []
-        for leaf_id in range(len(keys_branch)):
-            for j, prev_keys_branch in enumerate(prev_keys_branches):
-                if j not in branches_ignore:
-                    if leaf_id > (len(prev_keys_branch)-1):
-                        branches_ignore.append(j)
-                    elif prev_keys_branch[leaf_id] != keys_branch[leaf_id]:
-                        branches_ignore.append(j)
-            if len(branches_ignore) == len(prev_keys_branches):
-                break
-            stem_level = leaf_id
-
-        if stem_level == -1:  # branches have a different root -> new tree
-            tree_id += 1
-            branch_id = 0
-            prev_keys_branches = [keys_branch]
-        else:
-            prev_keys_branches.append(keys_branch)
-
-        for leaf_id, key in enumerate(keys_branch):
-            parent_keys = keys_branch[:(leaf_id+1)]
-            idx_str = ''
-            for parent_key in parent_keys:
-                idx_str += "['{}']".format(parent_key)
-            sub_pg_dict = copy.deepcopy(eval('pg_dict' + idx_str))
-            if 'arguments' in sub_pg_dict.keys():
-                if leaf_id < stem_level:
-                    continue
-
-                if key == 'callback':
-                    node_id = "_".join(["C", str(tree_id), str(branch_id), str(leaf_id)])
-                    node_name = node_id
-                    node = Node(id=node_id, name=node_name, graph=sub_pg_dict)
-                else:
-                    node_id = "_".join([key, str(tree_id), str(branch_id), str(leaf_id)])
-                    node_name = key
-                    node = Node(id=node_id, name=node_name, graph=sub_pg_dict)
-
-                # create edge
-                if 'callback' in parent_keys:
-                    links = create_links(parent_keys)
-                    parent_nodes = find_parent_leafs(forest, tree_id, leaf_id, links)
-                    parent_node = parent_nodes[-1]
-                    edge_name = links[-1]
-                    edge_id = "{}__{}__{}".format(parent_node.id, edge_name, node.id)
-                    edge = Edge(id=edge_id, name=edge_name, nodes=[parent_node, node])
-                    forest.edges[edge_id] = edge
+    nodes, _, _, _ = walk_pg_graph(nodes, pg_dict)
+    # create graph and sub_graph
 
 
-                # add and tag node in graph
-                forest.nodes[node_id] = node
-                forest.tree_ids[node_id] = tree_id
-                forest.branch_ids[node_id] = branch_id
-                forest.leaf_ids[node_id] = leaf_id
-
-                for arg_key in sub_pg_dict['arguments'].keys():
-                    sub_pg_args = sub_pg_dict['arguments'][arg_key]
-                    if type(sub_pg_args) != list:
-                        sub_pg_args = [sub_pg_args]
-                    for l, sub_pg_arg in enumerate(sub_pg_args):
-                        if type(sub_pg_arg) != dict:
-                            continue
-                        parent_node_id = None
-                        if 'from_node' in sub_pg_arg.keys():
-                            parent_node_name = sub_pg_arg['from_node']
-                            parent_node_id = from_node(forest, parent_node_name)
-                            if len(sub_pg_args) == 1:
-                                sub_pg_dict['arguments'][arg_key]['from_node'] = parent_node_id
-                            else:
-                                sub_pg_dict['arguments'][arg_key][l]['from_node'] = parent_node_id
-                        elif 'from_argument' in sub_pg_arg.keys():
-                            parent_arg_name = sub_pg_dict['arguments'][arg_key]['from_argument']
-                            links = create_links(parent_keys)
-                            parent_node_id = from_argument(forest, tree_id, leaf_id, links, parent_arg_name)
-                            if len(sub_pg_args) == 1:
-                                sub_pg_dict['arguments'][arg_key] = {'from_node': parent_node_id}
-                            else:
-                                sub_pg_dict['arguments'][arg_key][l] = {'from_node': parent_node_id}
-
-                        if parent_node_id:
-                            forest.nodes[node_id].graph = sub_pg_dict
-                            # create edge
-                            parent_node = forest.nodes[parent_node_id]
-                            edge_id = "{}__{}__{}".format(parent_node.id, arg_key, node.id)
-                            edge_name = arg_key
-                            edge = Edge(id=edge_id, name=edge_name, nodes=[parent_node, node])
-                            forest.edges[edge_id] = edge
-
-    forest = update_sub_graphs(forest)
-
-    return forest
+    return
 
 if __name__ == '__main__':
     #test_dict = {'a': {'b': {'c': 3}, 'd': {'e': 4}}, 'd': 9, 'g': {'f': 3, 't': {'h': {'z': 5}}}}
