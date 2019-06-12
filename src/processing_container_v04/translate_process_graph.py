@@ -1,73 +1,9 @@
 import copy
 import secrets
-import numpy as np
 from json import load
-from pprint import pformat
 from collections import OrderedDict
-
-
-class Node(object):
-    def __init__(self, id=None, name=None, graph=None, edges=None, parent_nodes=None, child_nodes=None):
-        self.id = id
-        self.name = name
-        self.graph = graph
-        self.edges = edges
-        self.parent_nodes = parent_nodes
-        self.child_nodes = child_nodes
-
-    def __repr__(self):
-        pass
-
-    def __str__(self):
-        pg_str = pformat(self.graph)
-        repr_str = "Node ID: {} \nNode Name: {} \n{}".format(self.id, self.name, pg_str)
-
-        return repr_str
-
-# class ProcessingNode(Node):
-#     def __init__(self, ):
-#         super(ProcessingNode).__init__(id, name, graph)
-#
-#     @classmethod
-#     def from_node(cls, node):
-
-class Edge(object):
-    def __init__(self, id=None, name=None, nodes=None):
-        self.id = id
-        self.name = name
-        self.nodes = nodes
-
-    @property
-    def node_ids(self):
-        return [node.id for node in self.nodes]
-
-
-class Graph(object):
-    def __init__(self, nodes=None, edges=None, tree_ids=None, branch_ids=None, leaf_ids=None):
-        self.nodes = nodes
-        self.edges = edges
-        self.tree_ids = tree_ids
-        self.branch_ids = branch_ids
-        self.leaf_ids = leaf_ids
-
-    @property
-    def nnodes(self):
-        return len(self.nodes)
-
-    @property
-    def nedges(self):
-        return len(self.edges)
-
-    def __str__(self):
-        repr_str = ""
-        tree_ids = list(self.tree_ids.values())
-        nodes = list(self.nodes.values())
-        nodes_sorted = np.array(nodes)[np.argsort(tree_ids)].tolist()
-        for node in nodes_sorted:
-            repr_str_per_node = str(node) + "\n\n"
-            repr_str += repr_str_per_node
-
-        return repr_str
+from processing_container_v04.graph import Node, Edge, Graph
+from processing_container_v04.validate_process_graph import validate_graph
 
 
 def walk_pg_graph(nodes, data, node_ids=[], level=0, prev_level=0):
@@ -82,8 +18,12 @@ def walk_pg_graph(nodes, data, node_ids=[], level=0, prev_level=0):
                     parent_node = nodes[filtered_node_ids[-1]]
                     edge_nodes = [parent_node, node]
                     edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
-                    edge = Edge(id=edge_id, nodes=edge_nodes)
+                    edge_name = "callback"
+                    edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
                     node.edges.append(edge)
+                    # trim pg graph of previous node
+                    parent_node.graph = replace_callback(parent_node.graph, {'callback': None})
+
                 nodes[node_id] = node
             else:
                 node_id = None
@@ -101,8 +41,79 @@ def walk_pg_graph(nodes, data, node_ids=[], level=0, prev_level=0):
     return nodes, node_ids, level, prev_level
 
 
-def validate_pg_graph():
-    pass
+def keys2str(keys):
+    key_str = ""
+    for key in keys:
+        if isinstance(key, str):
+            key = "'{}'".format(key)
+        key_str += "[{}]".format(key)
+
+    return key_str
+
+
+def get_obj_elem_from_keys(obj, keys):
+    key_str = keys2str(keys)
+    return copy.deepcopy(eval('obj' + key_str))
+
+
+def set_obj_elem_from_keys(obj, keys, value):
+    key_str = keys2str(keys)
+    exec('obj{}={}'.format(key_str, value))
+    return obj
+
+
+# TODO: this function could need a refactoring depending on the process graph design
+def walk_pg_arguments(pg_graph, keys_lineage=None, key_lineage=None, level=0, prev_level=0):
+    if key_lineage is None:
+        key_lineage = []
+
+    if keys_lineage is None:
+        keys_lineage = []
+
+    if isinstance(pg_graph, dict):
+        for k, v in pg_graph.items():
+            key_lineage.append(k)
+            sub_pg_graph = pg_graph[k]
+            level += 1
+            prev_level = level
+            keys_lineage, key_lineage, level, prev_level = walk_pg_arguments(sub_pg_graph, keys_lineage=keys_lineage,
+                                                                        key_lineage=key_lineage, level=level,
+                                                                        prev_level=prev_level)
+    elif isinstance(pg_graph, list):
+        for i, elem in enumerate(pg_graph):
+            key_lineage.append(i)
+            sub_pg_graph = pg_graph[i]
+            level += 1
+            prev_level = level
+            keys_lineage, key_lineage, level, prev_level = walk_pg_arguments(sub_pg_graph, keys_lineage=keys_lineage,
+                                                                        key_lineage=key_lineage, level=level,
+                                                                        prev_level=prev_level)
+
+    level -= 1
+    if key_lineage and (key_lineage not in keys_lineage):
+        if (level - prev_level) == -1:
+            keys_lineage.append(key_lineage)
+        key_lineage = key_lineage[:-1]
+
+    return keys_lineage, key_lineage, level, prev_level
+
+
+def find_node_inputs(pg_graph, data_link):
+    keys_lineage = []
+    for key, value in pg_graph['arguments'].items():
+        keys_lineage_arg, _, _, _ = walk_pg_arguments(value)
+        if keys_lineage_arg:
+            keys_lineage.extend([[key] + elem for elem in keys_lineage_arg if elem[-1] == data_link])
+
+    return keys_lineage
+
+
+def replace_callback(pg_graph, value):
+    for k, v in pg_graph['arguments'].items():
+        if isinstance(v, dict) and 'callback' in v.keys():
+            pg_graph['arguments'][k] = value
+    return pg_graph
+
 
 def from_node(nodes, node_name):
     for node in nodes:
@@ -111,75 +122,101 @@ def from_node(nodes, node_name):
 
     return None
 
-def find_siblings(nodes, node):
-    siblings = []
-    for node_other in nodes:
-        if node_other.id != node.id:
-            if node.parent_nodes[-1].id == node_other.parent_nodes[-1].id:
-                siblings.append(node)
 
-    return siblings
+def adjust_from_nodes(graph):
+
+    for node in graph.nodes.values():
+        nodes_same_level = graph.nodes_at_same_level(node, link="callback", include_node=True)
+        keys_lineage = find_node_inputs(node.graph, "from_node")
+        for key_lineage in keys_lineage:
+            data_entry = get_obj_elem_from_keys(node.graph['arguments'], key_lineage)
+            if data_entry in graph.ids:
+                continue
+            node_other = from_node(nodes_same_level, data_entry)
+            if node_other:
+                set_obj_elem_from_keys(node.graph['arguments'], key_lineage, "'{}'".format(node_other.id))
+                edge_nodes = [node_other, node]
+                edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
+                edge_name = "data"
+                edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
+                node.edges.append(edge)
+            else:
+                raise Exception('"from_node: {}" reference is wrong.'.format(data_entry))
+
+    return graph
 
 
-# TODO: code is repeated twice, outsource it to function
-def link_nodes(nodes):
+def adjust_from_arguments(graph):
+
+    # TODO: keep binary behaviour in mind
+    for node in graph.nodes.values():
+        keys_lineage = find_node_inputs(node.graph, "from_argument")
+        for key_lineage in keys_lineage:
+            nodes_lineage = graph.node_lineage(node, link="callback")
+            if nodes_lineage:
+                root_node = nodes_lineage[0]
+                node_other = root_node.parent('data')
+                if node_other:
+                    set_obj_elem_from_keys(node.graph['arguments'], key_lineage[:-1],
+                                           {'from_node': '{}'.format(node_other.id)})
+                    edge_nodes = [node_other, node]
+                    edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
+                    edge_name = "data"
+                    edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
+                    node.edges.append(edge)
+            else:
+                raise Exception('"from_argument" reference is wrong.')
+
+    return graph
+
+
+def adjust_callbacks(graph):
+
+    for node in graph.nodes.values():
+        nodes_child = graph.node_children(node, link="callback")
+        if nodes_child:
+            node_result = None
+            for node_child in nodes_child:
+                if ("result" in node_child.graph.keys()) and node_child.graph['result']:
+                    node_result = node_child
+                    break
+            if node_result:
+                node.graph = replace_callback(node.graph, {'from_node': node_result.id})
+            else:
+                raise Exception('There must be one result node within the scope of {}'.format(node.name))
+
+    return graph
+
+
+def link_nodes(graph):
+
     # fill in all from_node parameters and create edges
-    for node in nodes.values():
-        siblings = find_siblings(nodes, node)
-        for arg in node.graph['arguments'].keys():
-            data_arg = node.graph['arguments'][arg]
-            if not isinstance(data_arg, list):
-                data_arg = [data_arg]
-            for i, data_entry in enumerate(data_arg):
-                if 'from_node' in data_entry.keys():
-                    node_other = from_node(siblings, data_entry['from_node'])
-                    if node_other:
-                        if len(data_arg) > 1:
-                            node.graph['arguments'][arg][i]['from_node'] = node_other.id
-                        else:
-                            node.graph['arguments'][arg]['from_node'] = node_other.id
-                        edge_nodes = [node_other, node]
-                        edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
-                        edge = Edge(id=edge_id, nodes=edge_nodes)
-                        node.edges.append(edge)
-                    else:
-                        raise Exception('') # TODO
+    graph = adjust_from_nodes(graph)
 
     # fill in all from_argument parameters
-    # TODO: keep binary behaviour in mind
-    for node in nodes.values():
-        for arg in node.graph['arguments'].keys():
-            data_arg = node.graph['arguments'][arg]
-            if not isinstance(data_arg, list):
-                data_arg = [data_arg]
-            for i, data_entry in enumerate(data_arg):
-                if 'from_argument' in data_entry.keys():
-                    node_other =
-                    if node_other:
-                        if len(data_arg) > 1:
-                            node.graph['arguments'][arg][i]['from_node'] = node_other.id
-                        else:
-                            node.graph['arguments'][arg]['from_node'] = node_other.id
-                        edge_nodes = [node_other, node]
-                        edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
-                        edge = Edge(id=edge_id, nodes=edge_nodes)
-                        node.edges.append(edge)
-                    else:
-                        raise Exception('') # TODO
+    graph = adjust_from_arguments(graph)
 
+    # fill in the callback result nodes
+    graph = adjust_callbacks(graph)
 
+    return graph
 
 
 def translate(pg_filepath):
     pg_dict = load(open(pg_filepath))
     nodes = OrderedDict()
     nodes, _, _, _ = walk_pg_graph(nodes, pg_dict)
-    # create graph and sub_graph
 
+    # create graph object
+    graph = Graph(nodes)
 
-    return
+    # validate nodes
+    validate_graph(graph)
+
+    # link all nodes and fill in from_node and from_argument
+    graph = link_nodes(graph)
+
+    return graph
 
 if __name__ == '__main__':
-    #test_dict = {'a': {'b': {'c': 3}, 'd': {'e': 4}}, 'd': 9, 'g': {'f': 3, 't': {'h': {'z': 5}}}}
-    #keys_tree, _, _, _ = walkdict(test_dict)
     pass

@@ -10,7 +10,7 @@
         "east": 16.84,
         "west": 15.96
       },
-      "temporal_extent": ["2017-09-05", "2017-10-01"],
+      "temporal_extent": ["2017-09-05", "2017-10-01"]
     }
   },
   "ndvi": {
@@ -34,7 +34,7 @@
           "arguments": {
             "data": {"from_argument": "data"}
           },
-          "result": "True"
+          "result": true
         }
       }
     }
