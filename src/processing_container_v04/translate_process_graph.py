@@ -16,11 +16,11 @@ def walk_pg_graph(nodes, data, node_ids=[], level=0, prev_level=0):
                 if node_ids:
                     filtered_node_ids = [prev_node_id for prev_node_id in node_ids if prev_node_id]
                     parent_node = nodes[filtered_node_ids[-1]]
-                    edge_nodes = [parent_node, node]
+                    edge_nodes = [node, parent_node]
                     edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
                     edge_name = "callback"
                     edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
-                    node.edges.append(edge)
+                    node.add_edge(edge)
                     # trim pg graph of previous node
                     parent_node.graph = replace_callback(parent_node.graph, {'callback': None})
 
@@ -139,7 +139,7 @@ def adjust_from_nodes(graph):
                 edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
                 edge_name = "data"
                 edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
-                node.edges.append(edge)
+                node.add_edge(edge)
             else:
                 raise Exception('"from_node: {}" reference is wrong.'.format(data_entry))
 
@@ -152,9 +152,9 @@ def adjust_from_arguments(graph):
     for node in graph.nodes.values():
         keys_lineage = find_node_inputs(node.graph, "from_argument")
         for key_lineage in keys_lineage:
-            nodes_lineage = graph.node_lineage(node, link="callback")
+            nodes_lineage = graph.node_lineage(node, link="callback", ancestors=False)
             if nodes_lineage:
-                root_node = nodes_lineage[0]
+                root_node = nodes_lineage[-1]
                 node_other = root_node.parent('data')
                 if node_other:
                     set_obj_elem_from_keys(node.graph['arguments'], key_lineage[:-1],
@@ -163,7 +163,7 @@ def adjust_from_arguments(graph):
                     edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
                     edge_name = "data"
                     edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
-                    node.edges.append(edge)
+                    node.add_edge(edge)
             else:
                 raise Exception('"from_argument" reference is wrong.')
 
@@ -173,12 +173,12 @@ def adjust_from_arguments(graph):
 def adjust_callbacks(graph):
 
     for node in graph.nodes.values():
-        nodes_child = graph.node_children(node, link="callback")
-        if nodes_child:
+        node_descendants = node.ancestors(link="callback")
+        if node_descendants:
             node_result = None
-            for node_child in nodes_child:
-                if ("result" in node_child.graph.keys()) and node_child.graph['result']:
-                    node_result = node_child
+            for node_descendant in node_descendants:
+                if ("result" in node_descendant.graph.keys()) and node_descendant.graph['result']:
+                    node_result = node_descendant
                     break
             if node_result:
                 node.graph = replace_callback(node.graph, {'from_node': node_result.id})
@@ -188,13 +188,22 @@ def adjust_callbacks(graph):
     return graph
 
 
+# TODO is an update after every step even necessary?
 def link_nodes(graph):
+    # update graph regarding "callback" nodes
+    graph.update()
 
     # fill in all from_node parameters and create edges
     graph = adjust_from_nodes(graph)
 
+    # update the graph regarding "data" nodes
+    graph.update()
+
     # fill in all from_argument parameters
     graph = adjust_from_arguments(graph)
+
+    # update the graph regarding "data" nodes
+    graph.update()
 
     # fill in the callback result nodes
     graph = adjust_callbacks(graph)
