@@ -1,5 +1,5 @@
 import os
-from processing_container_v04.translate_process_graph import translate
+from openeo_pg_parser_python.translate_process_graph import translate
 
 def main(pg_filename):
     pg_filepath = os.path.join(os.path.dirname(__file__), 'process_graphs', pg_filename)

@@ -2,8 +2,8 @@ import copy
 import secrets
 from json import load
 from collections import OrderedDict
-from processing_container_v04.graph import Node, Edge, Graph
-from processing_container_v04.validate_process_graph import validate_graph
+from openeo_pg_parser_python.graph import Node, Edge, Graph
+from openeo_pg_parser_python.validate_process_graph import validate_graph
 
 
 def walk_pg_graph(nodes, data, node_ids=[], level=0, prev_level=0):
