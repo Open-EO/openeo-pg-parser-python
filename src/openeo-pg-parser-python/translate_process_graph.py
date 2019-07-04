@@ -6,7 +6,7 @@ from processing_container_v04.graph import Node, Edge, Graph
 from processing_container_v04.validate_process_graph import validate_graph
 
 
-def walk_pg_graph(nodes, data, node_ids=[], level=0, prev_level=0):
+def walk_pg_graph(nodes, data, node_ids=None, level=0, prev_level=0):
     for key, value in data.items():
         if isinstance(value, dict):
             if "process_id" in value.keys():
@@ -27,6 +27,9 @@ def walk_pg_graph(nodes, data, node_ids=[], level=0, prev_level=0):
                 nodes[node_id] = node
             else:
                 node_id = None
+
+            if node_ids is None:
+                node_ids = []
 
             node_ids.append(node_id)
             prev_level = level
