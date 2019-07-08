@@ -3,7 +3,6 @@ import secrets
 from json import load
 from collections import OrderedDict
 from openeo_pg_parser_python.graph import Node, Edge, Graph
-from openeo_pg_parser_python.validate_process_graph import validate_graph
 
 
 def walk_pg_graph(nodes, data, node_ids=None, level=0, prev_level=0):
@@ -214,16 +213,13 @@ def link_nodes(graph):
     return graph
 
 
-def translate(pg_filepath):
+def translate_graph(pg_filepath):
     pg_dict = load(open(pg_filepath))
     nodes = OrderedDict()
     nodes, _, _, _ = walk_pg_graph(nodes, pg_dict)
 
     # create graph object
     graph = Graph(nodes)
-
-    # validate nodes
-    validate_graph(graph)
 
     # link all nodes and fill in from_node and from_argument
     graph = link_nodes(graph)
