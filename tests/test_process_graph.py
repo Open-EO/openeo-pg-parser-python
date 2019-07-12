@@ -44,7 +44,10 @@ def test_validate_process_graph_local():
     Validate a process graph using processes defined on a backend
     """
 
+    # Validate input file
     validate_process_graph(os.path.join(PG_FOLDER, "use_case_1.json"))
+    # Validate input dictionary
+    validate_process_graph(load(open(os.path.join(PG_FOLDER, "use_case_1.json"))))
 
 
 def test_validate_process_graph_remote():

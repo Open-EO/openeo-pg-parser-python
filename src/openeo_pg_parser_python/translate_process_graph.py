@@ -1,3 +1,4 @@
+import os
 import copy
 import secrets
 from json import load
@@ -214,7 +215,11 @@ def link_nodes(graph):
 
 
 def translate_graph(pg_filepath):
-    pg_dict = load(open(pg_filepath))
+    if isinstance(pg_filepath, str):
+        if os.path.isfile(pg_filepath):
+            pg_dict = load(open(pg_filepath))
+    elif isinstance(pg_filepath, dict):
+        pg_dict = pg_filepath
     nodes = OrderedDict()
     nodes, _, _, _ = walk_pg_graph(nodes, pg_dict)
 
