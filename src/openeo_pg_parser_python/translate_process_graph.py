@@ -103,7 +103,7 @@ def walk_pg_arguments(pg_graph, keys_lineage=None, key_lineage=None, level=0, pr
 
 def find_node_inputs(pg_graph, data_link):
     keys_lineage = []
-    for key, value in pg_graph['arguments'].items():
+    for key, value in pg_graph['parameters'].items():
         keys_lineage_arg, _, _, _ = walk_pg_arguments(value)
         if keys_lineage_arg:
             keys_lineage.extend([[key] + elem for elem in keys_lineage_arg if elem[-1] == data_link])
@@ -112,9 +112,9 @@ def find_node_inputs(pg_graph, data_link):
 
 
 def replace_callback(pg_graph, value):
-    for k, v in pg_graph['arguments'].items():
+    for k, v in pg_graph['parameters'].items():
         if isinstance(v, dict) and 'callback' in v.keys():
-            pg_graph['arguments'][k] = value
+            pg_graph['parameters'][k] = value
     return pg_graph
 
 
@@ -132,12 +132,12 @@ def adjust_from_nodes(graph):
         nodes_same_level = graph.nodes_at_same_level(node, link="callback", include_node=True)
         keys_lineage = find_node_inputs(node.graph, "from_node")
         for key_lineage in keys_lineage:
-            data_entry = get_obj_elem_from_keys(node.graph['arguments'], key_lineage)
+            data_entry = get_obj_elem_from_keys(node.graph['parameters'], key_lineage)
             if data_entry in graph.ids:
                 continue
             node_other = from_node(nodes_same_level, data_entry)
             if node_other:
-                set_obj_elem_from_keys(node.graph['arguments'], key_lineage, "'{}'".format(node_other.id))
+                set_obj_elem_from_keys(node.graph['parameters'], key_lineage, "'{}'".format(node_other.id))
                 edge_nodes = [node_other, node]
                 edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
                 edge_name = "data"
@@ -160,7 +160,7 @@ def adjust_from_arguments(graph):
                 root_node = nodes_lineage[-1]
                 node_other = root_node.parent('data')
                 if node_other:
-                    set_obj_elem_from_keys(node.graph['arguments'], key_lineage[:-1],
+                    set_obj_elem_from_keys(node.graph['parameters'], key_lineage[:-1],
                                            {'from_node': '{}'.format(node_other.id)})
                     edge_nodes = [node_other, node]
                     edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
@@ -222,7 +222,7 @@ def translate_graph(pg_filepath):
         pg_dict = pg_filepath
     nodes = OrderedDict()
     nodes, _, _, _ = walk_pg_graph(nodes, pg_dict)
-
+    import pdb; pdb.set_trace()
     # create graph object
     graph = Graph(nodes)
 
