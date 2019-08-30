@@ -2,7 +2,7 @@
   "s2a": {
     "process_id": "load_collection",
     "process_description": "Loading S2A data.",
-    "arguments": {
+    "parameters": {
       "id": "s2a_prd_msil1c",
       "spatial_extent": {
         "north": 48.40,
@@ -16,7 +16,7 @@
   "ndvi": {
     "process_id": "ndvi",
     "process_description": "Calculate NDVI.",
-    "arguments": {
+    "parameters": {
       "data": {"from_node": "s2a"},
       "name": "ndvi"
     }
@@ -24,14 +24,14 @@
   "min_time": {
     "process_id": "reduce",
     "process_description": "Take the minimum value in the time series.",
-    "arguments": {
+    "parameters": {
       "data": {"from_node": "ndvi"},
       "dimension": "temporal",
       "reducer": {
         "callback": {
           "process_id": "min",
           "process_description": "Calculate minimum",
-          "arguments": {
+          "parameters": {
             "data": {"from_argument": "data"}
           },
           "result": true
@@ -42,7 +42,7 @@
   "output": {
     "process_id": "save_result",
     "description": "Save to disk",
-    "arguments": {
+    "parameters": {
       "data": {"from_node": "min_time"},
       "format": "Gtiff"
     }
