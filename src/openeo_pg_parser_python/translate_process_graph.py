@@ -222,7 +222,6 @@ def translate_graph(pg_filepath):
         pg_dict = pg_filepath
     nodes = OrderedDict()
     nodes, _, _, _ = walk_pg_graph(nodes, pg_dict)
-    import pdb; pdb.set_trace()
     # create graph object
     graph = Graph(nodes)
 
