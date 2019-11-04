@@ -56,7 +56,7 @@ def test_validate_process_graph_remote():
     """
 
     validate_process_graph(os.path.join(PG_FOLDER, "test_1.json"),
-                           processes_url="https://earthengine.openeo.org/v0.4/processes")
+                           processes_url="http://openeo.vgt.vito.be/openeo/0.4.0/processes")
 
 
 def test_translate_process_graph():

@@ -47,9 +47,11 @@ def validate_graph(pg_filepath, processes_list):
         if pg['process_id'] in process_defs.keys():
             process_def = process_defs[pg['process_id']]
             # check all parameters
+            # NB key 'parameters' is used in the processes' definition
+            # NB key 'arguments' is used in the process graph
             for parameter_def in process_def['parameters']:
                 if 'required' in process_def['parameters'][parameter_def]:
-                    if parameter_def not in pg['parameters'].keys():
+                    if parameter_def not in pg['arguments'].keys():
                         raise Exception("Parameter '{}' is required for process '{}'".format(parameter_def['name'],
                                                                                                   pg['process_id']))
             validated = True
