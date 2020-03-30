@@ -6,12 +6,11 @@ from collections import OrderedDict
 from openeo_pg_parser_python.graph import Node, Edge, Graph
 
 
-def walk_pg_graph(nodes, data, node_ids=None, level=0, prev_level=0):
+def walk_pg_graph(nodes, data, node_ids=None, level=0, prev_level=0, node_counter=0):
     for key, value in data.items():
         if isinstance(value, dict):
             if "process_id" in value.keys():
-                token = secrets.token_hex(nbytes=8)
-                node_id = "_".join([key, token])
+                node_id = "_".join([key, str(node_counter)])
                 node = Node(id=node_id, name=key, graph=value, edges=[])
                 if node_ids:
                     filtered_node_ids = [prev_node_id for prev_node_id in node_ids if prev_node_id]
@@ -34,8 +33,9 @@ def walk_pg_graph(nodes, data, node_ids=None, level=0, prev_level=0):
             node_ids.append(node_id)
             prev_level = level
             level += 1
+            node_counter += 1
             nodes, node_ids, level, prev_level = walk_pg_graph(nodes, value, node_ids=node_ids, level=level,
-                                                               prev_level=prev_level)
+                                                               prev_level=prev_level, node_counter=node_counter)
 
     level += -1
     if node_ids:
