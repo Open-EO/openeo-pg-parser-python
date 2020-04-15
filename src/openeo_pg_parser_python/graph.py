@@ -44,6 +44,12 @@ class Node:
 
         return repr_str
 
+    @property
+    def dependencies(self):
+        """ graph.Graph : Direct dependencies of this node. """
+
+        return self.ancestors()
+
     def relatives(self, link=None, ancestor=True):
         """
         Finds direct relatives of the node, i.e. parents or children.
