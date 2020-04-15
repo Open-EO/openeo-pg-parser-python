@@ -44,13 +44,13 @@ class Node:
 
         return repr_str
 
-    def relatives(self, link, ancestor=True):
+    def relatives(self, link=None, ancestor=True):
         """
         Finds direct relatives of the node, i.e. parents or children.
 
         Parameters
         ----------
-        link : str
+        link : str, optional
             Link/edge name connecting two nodes.
         ancestor : bool, optional
             If true, all ancestors/parents are returned (default).
@@ -69,8 +69,11 @@ class Node:
 
         relatives = []
         for edge in self.edges:
-            if edge.name == link and edge.nodes[idx].id == self.id:
-                relatives.append(edge.nodes[idx_other])
+            if edge.nodes[idx].id == self.id:
+                if link is not None and edge.name == link:
+                    relatives.append(edge.nodes[idx_other])
+                elif link is None:
+                    relatives.append(edge.nodes[idx_other])
 
         return Graph.from_list(relatives)
 
@@ -127,13 +130,13 @@ class Node:
         else:
             return descendants[0]
 
-    def descendants(self, link):
+    def descendants(self, link=None):
         """
         Returns all descendants/childs with the specified linkage as a graph.
 
         Parameters
         ----------
-        link : str
+        link : str, optional
             Link/edge name connecting two nodes.
 
         Returns
@@ -141,15 +144,15 @@ class Node:
         graph.Graph
         """
 
-        return self.relatives(link, ancestor=False)
+        return self.relatives(link=link, ancestor=False)
 
-    def ancestors(self, link):
+    def ancestors(self, link=None):
         """
         Returns all ancestors/parents with the specified linkage as a graph.
 
         Parameters
         ----------
-        link : str
+        link : str, optional
             Link/edge name connecting two nodes.
 
         Returns
@@ -157,7 +160,7 @@ class Node:
         graph.Graph
         """
 
-        return self.relatives(link, ancestor=True)
+        return self.relatives(link=link, ancestor=True)
 
     def add_edge(self, edge):
         """
