@@ -131,7 +131,7 @@ def validate_processes(process_graph, processes_url=None, processes_dirpath=None
     process_defs = map_ids(processes)
 
     valid = True
-    for node in process_graph.nodes.values():
+    for node in process_graph.nodes:
         if node.content['process_id'] not in process_defs.keys():
             valid = False
             wrn_msg = "'{}' is not in the current set of process definitions.".format(node.content['process_id'])
@@ -174,7 +174,7 @@ def validate_collections(process_graph, collections_url=None, collections_dirpat
     collections_map = map_ids(collections)
 
     valid = True
-    for node in process_graph.nodes.values():
+    for node in process_graph.nodes:
         if node.content['process_id'] == 'load_collection':
             if node.content['arguments']['id'] not in collections_map.keys():
                 valid = False

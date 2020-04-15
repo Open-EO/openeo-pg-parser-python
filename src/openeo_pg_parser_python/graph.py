@@ -258,7 +258,17 @@ class Graph(object):
             Dictionary containing node ID's as keys and `graph.Node` objects as values.
         """
 
-        self.nodes = nodes
+        self._nodes = nodes
+
+    @property
+    def nodes(self):
+        """ View : Returns all nodes in the graph as a view. """
+        return self._nodes.values()
+
+    @property
+    def ids(self):
+        """ view : View on Node ID's. """
+        return self._nodes.keys()
 
     @classmethod
     def from_list(cls, nodes):
@@ -281,11 +291,6 @@ class Graph(object):
 
         return cls(nodes_dict)
 
-    @property
-    def ids(self):
-        """ view : view on Node ID's """
-        return self.nodes.keys()
-
     def __len__(self):
         """ int : number of nodes in the graph. """
         return len(self.nodes)
@@ -304,11 +309,11 @@ class Graph(object):
         graph.Node
         """
 
-        if item in self.nodes.keys():
-            return self.nodes[item]
+        if item in self.ids:
+            return self._nodes[item]
         else:
             if isinstance(item, int):
-                return list(self.nodes.values())[item]
+                return list(self.nodes)[item]
             else:
                 err_msg = "'{}' is not a valid key.".format(item)
                 raise KeyError(err_msg)
@@ -317,7 +322,7 @@ class Graph(object):
         """ str : string version of the class, i.e., creates a multi-line string from all nodes.  """
 
         repr_str = ""
-        for node in self.nodes.values():
+        for node in self.nodes:
             repr_str_per_node = str(node) + "\n\n"
             repr_str += repr_str_per_node
 
@@ -337,13 +342,13 @@ class Graph(object):
         graph.Node
         """
 
-        for node in self.nodes.values():
+        for node in self.nodes:
             if node.name == name:
                 return node
 
         return None
 
-    def lineage(self, node, link=None, ancestors=True, level=None):
+    def lineage(self, node, link=None, ancestors=True):
         """
         Finds all nodes following a specific lineage in the graph/family tree.
 
@@ -354,8 +359,6 @@ class Graph(object):
         ancestors : bool, optional
             If true, search is proceeded for all ancestors (default).
             If false, search is proceeded for all descendants.
-        level : int, optional
-
 
         Returns
         -------
@@ -405,7 +408,7 @@ class Graph(object):
 
         nodes = []
         parent_node = node.parent(link)
-        for node_other in self.nodes.values():
+        for node_other in self.nodes:
             if node_other.id != node.id:
                 parent_node_other = node_other.parent(link)
                 if parent_node and parent_node_other and (parent_node_other.id == parent_node.id):
@@ -437,8 +440,7 @@ class Graph(object):
 
         nodes_ordered = []
         if by == "dependency":
-            nodes = self.nodes.values()
-            for node in nodes:
+            for node in self.nodes:
                 insert_idx = 0
                 for node_dependency in node.dependencies:
                     for idx, node_ordered in enumerate(nodes_ordered):
@@ -461,7 +463,7 @@ class Graph(object):
             Updated graph with linked nodes.
         """
 
-        for node in self.nodes.values():
+        for node in self.nodes:
             for edge in node.edges:
                 for i, edge_node in enumerate(edge.nodes):
                     if edge_node.id != node.id:

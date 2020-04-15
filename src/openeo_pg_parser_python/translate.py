@@ -264,7 +264,7 @@ def adjust_from_nodes(process_graph):
     graph.Graph
     """
 
-    for node in process_graph.nodes.values():
+    for node in process_graph.nodes:
         pg_same_level = process_graph.find_siblings(node, link="callback", include_node=True)
         keys_lineage = find_node_inputs(node.content, "from_node")
         for key_lineage in keys_lineage:
@@ -299,7 +299,7 @@ def adjust_from_arguments(process_graph):
     graph.Graph
     """
 
-    for node in process_graph.nodes.values():
+    for node in process_graph.nodes:
         keys_lineage = find_node_inputs(node.content, "from_argument")
         for key_lineage in keys_lineage:
             nodes_lineage = process_graph.lineage(node, link="callback")
@@ -334,7 +334,7 @@ def adjust_callbacks(process_graph):
     graph.Graph
     """
 
-    for node in process_graph.nodes.values():
+    for node in process_graph.nodes:
         node_descendants = node.descendants(link="callback")
         if node_descendants:
             node_result = None
