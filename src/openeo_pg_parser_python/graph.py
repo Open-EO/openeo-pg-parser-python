@@ -441,10 +441,10 @@ class Graph(object):
         nodes_ordered = []
         if by == "dependency":
             for node in self.nodes:
-                insert_idx = 0
+                insert_idx = len(nodes_ordered)
                 for node_dependency in node.dependencies:
                     for idx, node_ordered in enumerate(nodes_ordered):
-                        if (idx >= insert_idx) and (node_dependency.id == node_ordered.id):
+                        if (idx <= insert_idx) and (node_dependency.id == node_ordered.id):
                             insert_idx = idx + 1  # place the node after the dependency
                 nodes_ordered.insert(insert_idx, node)
         else:

@@ -110,7 +110,7 @@ def walk_process_graph(process_graph, nodes, node_ids=None, level=0, prev_level=
                 if node_ids:
                     filtered_node_ids = [prev_node_id for prev_node_id in node_ids if prev_node_id]
                     parent_node = nodes[filtered_node_ids[-1]]
-                    edge_nodes = [parent_node, node]
+                    edge_nodes = [node, parent_node] # for a callback the parent node comes after the node
                     edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
                     edge_name = "callback"
                     edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
@@ -302,7 +302,7 @@ def adjust_from_arguments(process_graph):
     for node in process_graph.nodes:
         keys_lineage = find_node_inputs(node.content, "from_argument")
         for key_lineage in keys_lineage:
-            nodes_lineage = process_graph.lineage(node, link="callback")
+            nodes_lineage = process_graph.lineage(node, link="callback", ancestors=False)  # for callbacks the input lineage is inverted
             if nodes_lineage:
                 root_node = nodes_lineage[-1]
                 node_other = root_node.parent('data')
@@ -335,12 +335,12 @@ def adjust_callbacks(process_graph):
     """
 
     for node in process_graph.nodes:
-        node_descendants = node.descendants(link="callback")
-        if node_descendants:
+        node_ancestors = node.ancestors(link="callback")  # for a callback the lineage is inverted, thus the ancestors
+        if node_ancestors:
             node_result = None
-            for node_descendant in node_descendants:
-                if ("result" in node_descendant.content.keys()) and node_descendant.content['result']:
-                    node_result = node_descendant
+            for node_ancestor in node_ancestors:
+                if ("result" in node_ancestor.content.keys()) and node_ancestor.content['result']:
+                    node_result = node_ancestor
                     break
             if node_result:
                 node.content = replace_callback(node.content, {'from_node': node_result.id})
