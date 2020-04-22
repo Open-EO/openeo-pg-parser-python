@@ -91,7 +91,7 @@ To translate the JSON file into a python object, use:
 ```python
 from openeo_pg_parser_python.translate import translate_process_graph
 
-pg_filepath = r"/eodc/private/tuwgeo/users/cnavacch/projects/openEO_pydevel/openeo-pg-parser-python/tests/process_graphs/test_1.json"
+pg_filepath = "process_graph_example.json"
 process_graph = translate_process_graph(pg_filepath)
 ```
 If you print the `graph` you get the information contained in each node:
@@ -135,7 +135,10 @@ Node Name: output
  'process_id': 'save_result'}
 ```
 It also possible to sort the process graph by the dependency of each node
-with `sorted_process_graph = process_graph.sort(by='dependency')`:
+with:
+```python
+sorted_process_graph = process_graph.sort(by='dependency')
+```
 ```
 Node ID: s2a_0
 Node Name: s2a
