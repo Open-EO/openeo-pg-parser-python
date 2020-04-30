@@ -51,56 +51,72 @@ def load_json_files(dirpath):
 
     return processes_list
 
-def load_processes(processes_url=None, processes_dirpath=None):
+def load_processes(processes_src):
     """
-    Collects process definitions (JSON files) from a local or remote process directory.
+    Collects process definitions (JSON files) from a local or remote directory.
 
     Parameters
     ----------
-    processes_url : str, optional
-        URL of the remote process endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/processes").
-    processes_dirpath : str, optional
-        Directory path of the process files (.json) folder.
+    processes_src : str or list
+        It can be:
+            - directory path to processes (.json)
+            - URL of the remote process endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/processes")
+            - list of loaded process definitions
 
-    Notes
-    -----
-    Either `processes_url` or `processes_dirpath` needs to be given.
+    Returns
+    -------
+    list
+        List of loaded process definitions.
     """
 
-    if processes_url:
-        r = requests.get(url=processes_url)
-        data = r.json()
-        processes = data['processes']
-    elif processes_dirpath:
-        processes = load_json_files(processes_dirpath)
+    if isinstance(processes_src, str) and os.path.isdir(processes_src):
+        processes = load_json_files(processes_src)
+    elif isinstance(processes_src, str):
+        r = requests.get(url=processes_src)
+        if r.status_code == 200:
+            data = r.json()
+            processes = data['processes']
+        else:
+            err_msg = "The specified URL is wrong."
+            raise ValueError(err_msg)
+    elif isinstance(processes_src, list):
+        processes = processes_src
     else:
         err_msg = "Either a processes URL or a local directory path must be specified."
         raise ValueError(err_msg)
 
     return processes
 
-def load_collections(collections_url=None, collections_dirpath=None):
+def load_collections(collections_src):
     """
-    Collects process definitions (JSON files) from a local or remote process directory.
+    Collects collection definitions (JSON files) from a local or remote directory.
 
     Parameters
     ----------
-    collections_url : str, optional
-        URL of the remote process endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/processes").
-    collections_dirpath : str, optional
-        Directory path of the process files (.json) folder.
+    collections_src : str or list
+        It can be:
+            - directory path to collections (.json)
+            - URL of the remote process endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/collections")
+            - list of loaded collection definitions
 
-    Notes
-    -----
-    Either `processes_url` or `processes_dirpath` needs to be given.
+    Returns
+    -------
+    list
+        List of loaded collection definitions.
     """
 
-    if collections_url:
-        r = requests.get(url=collections_url)
-        data = r.json()
-        collections = data['collections']
-    elif collections_dirpath:
-        collections = load_json_files(collections_dirpath)
+    if isinstance(collections_src, str) and os.path.isdir(collections_src):
+        collections = load_json_files(collections_src)
+    elif isinstance(collections_src, str):
+        r = requests.get(url=collections_src)
+        if r.status_code == 200:
+            data = r.json()
+            collections = data['collections']
+        else:
+            err_msg = "The specified URL is wrong."
+            raise ValueError(err_msg)
+    elif isinstance(collections_src, list):
+        collections = collections_src
     else:
         err_msg = "Either a collection URL or a local directory path must be specified."
         raise ValueError(err_msg)
@@ -108,7 +124,7 @@ def load_collections(collections_url=None, collections_dirpath=None):
     return collections
 
 
-def validate_processes(process_graph, processes_url=None, processes_dirpath=None):
+def validate_processes(process_graph, processes_src):
     """
     Validate the input process graph according to the given list of processes.
 
@@ -116,10 +132,11 @@ def validate_processes(process_graph, processes_url=None, processes_dirpath=None
     ----------
     process_graph : graph.Graph
         Traversable Python process graph.
-    processes_url : str, optional
-        URL of the remote process endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/processes").
-    processes_dirpath : str, optional
-        Directory path of the process files (.json) folder.
+    processes_src : str or list
+        It can be:
+            - directory path to processes (.json)
+            - URL of the remote process endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/processes")
+            - list of loaded process definitions
 
     Returns
     -------
@@ -127,7 +144,7 @@ def validate_processes(process_graph, processes_url=None, processes_dirpath=None
         If True, the given process graph is valid with respect to the given process definitions.
     """
 
-    processes = load_processes(processes_url=processes_url, processes_dirpath=processes_dirpath)
+    processes = load_processes(processes_src=processes_src)
     process_defs = map_ids(processes)
 
     valid = True
@@ -151,7 +168,7 @@ def validate_processes(process_graph, processes_url=None, processes_dirpath=None
 
     return valid
 
-def validate_collections(process_graph, collections_url=None, collections_dirpath=None):
+def validate_collections(process_graph, collections_src):
     """
     Validate the input process graph according to the given list of processes.
 
@@ -159,10 +176,11 @@ def validate_collections(process_graph, collections_url=None, collections_dirpat
     ----------
     process_graph : graph.Graph
         Traversable Python process graph.
-    collections_url : str, optional
-        URL of the remote collections endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/collections").
-    collections_dirpath : str, optional
-        Directory path of the collection files (.json) folder.
+    collections_src : str or list
+        It can be:
+            - directory path to collections (.json)
+            - URL of the remote process endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/collections")
+            - list of loaded collection definitions
 
     Returns
     -------
@@ -170,7 +188,7 @@ def validate_collections(process_graph, collections_url=None, collections_dirpat
         If True, the given process graph is valid with respect to the given process definitions.
     """
 
-    collections  = load_collections(collections_url=collections_url, collections_dirpath=collections_dirpath)
+    collections  = load_collections(collections_src=collections_src)
     collections_map = map_ids(collections)
 
     valid = True
@@ -200,8 +218,7 @@ def validate_collections(process_graph, collections_url=None, collections_dirpat
 
     return valid
 
-def validate_process_graph(pg_filepath, processes_url=None, processes_dirpath=None,
-                           collections_url=None, collections_dirpath=None):
+def validate_process_graph(pg_filepath, processes_src, collections_src):
     """
     Validate the input process graph according to the given list of processes.
 
@@ -209,14 +226,16 @@ def validate_process_graph(pg_filepath, processes_url=None, processes_dirpath=No
     ----------
     pg_filepath : str or dict
         Filepath to process graph (json file) or parsed file as a dictionary.
-    processes_url : str, optional
-        URL of the remote process endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/processes").
-    processes_dirpath : str, optional
-        Directory path of the process files (.json) folder.
-    collections_url : str, optional
-        URL of the remote collections endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/collections").
-    collections_dirpath : str, optional
-        Directory path of the collection files (.json) folder.
+    processes_src : str or list
+        It can be:
+            - directory path to processes (.json)
+            - URL of the remote process endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/processes")
+            - list of loaded process definitions
+    collections_src : str or list
+        It can be:
+            - directory path to collections (.json)
+            - URL of the remote process endpoint (e.g., "http://openeo.vgt.vito.be/openeo/0.4.0/collections")
+            - list of loaded collection definitions
 
     Returns
     -------
@@ -226,10 +245,8 @@ def validate_process_graph(pg_filepath, processes_url=None, processes_dirpath=No
 
     process_graph = translate_process_graph(pg_filepath)
 
-    processes_valid = validate_processes(process_graph, processes_url=processes_url,
-                                         processes_dirpath=processes_dirpath)
-    collections_valid = validate_collections(process_graph, collections_url=collections_url,
-                                             collections_dirpath=collections_dirpath)
+    processes_valid = validate_processes(process_graph, processes_src)
+    collections_valid = validate_collections(process_graph, collections_src)
 
     process_graph_valid = processes_valid & collections_valid
 
