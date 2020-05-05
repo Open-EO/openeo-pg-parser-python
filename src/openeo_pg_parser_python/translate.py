@@ -118,8 +118,7 @@ def walk_process_graph(process_graph, nodes, node_ids=None, level=0, prev_level=
 
                     # set parent node process graph content with child node ID if 'result' is true
                     if ("result" in node.content.keys()) and node.content['result']:
-                        parent_node.content = replace_callback(parent_node.content,
-                                                               {'callback': {"from_node": node_id}})
+                        parent_node.content = replace_callback(parent_node.content, {"from_node": node_id})
 
                 nodes[node_id] = node
             else:
@@ -274,8 +273,8 @@ def adjust_from_nodes(process_graph):
         keys_lineage = find_node_inputs(node.content, "from_node")
         for key_lineage in keys_lineage:
             data_entry = get_obj_elem_from_keys(node.content['arguments'], key_lineage)
-            #if data_entry in process_graph.ids:
-            #    continue
+            if data_entry in process_graph.ids:  # data entry already exists as it was created during the recursive walk
+                continue
             node_other = pg_same_level.get_node_by_name(data_entry)
             if node_other:
                 set_obj_elem_from_keys(node.content['arguments'], key_lineage, "'{}'".format(node_other.id))

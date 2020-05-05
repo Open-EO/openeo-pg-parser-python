@@ -23,4 +23,5 @@ def test_process_graph_not_found():
         assert True
 
 if __name__ == '__main__':
-    unittest.main()
+    test_translate_process_graph()
+    test_process_graph_not_found()
