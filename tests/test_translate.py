@@ -8,8 +8,9 @@ from tests import PG_FOLDER
 def test_translate_process_graph():
     """ Translates a process graph from openEO syntax to a Python traversable object. """
 
-    graph = translate_process_graph(os.path.join(PG_FOLDER, "use_case_1.json"))
+    graph = translate_process_graph(os.path.join(PG_FOLDER, "s1_uc1_polarization.json"))
     print(graph)
+    assert True
 
 
 def test_process_graph_not_found():

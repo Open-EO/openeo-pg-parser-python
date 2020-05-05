@@ -159,8 +159,8 @@ def validate_processes(process_graph, processes_src):
             # NB key 'parameters' is used in the processes' definition
             # NB key 'arguments' is used in the process graph
             for parameter_def in process_def['parameters']:
-                if 'required' in process_def['parameters'][parameter_def]:
-                    if parameter_def not in node.content['arguments'].keys():
+                if 'required' in parameter_def:
+                    if parameter_def['name'] not in node.content['arguments'].keys():
                         valid = False
                         wrn_msg = "Parameter '{}' is required for process '{}'".format(parameter_def['name'],
                                                                                        node.content['process_id'])
@@ -201,7 +201,7 @@ def validate_collections(process_graph, collections_src):
             else:
                 collection = collections_map[node.content['arguments']['id']]
                 # check bands
-                if 'bands' in node.content['arguments']:
+                if 'bands' in node.content['arguments'] and 'bands' in collection:
                     node_bands = [band.lower() for band in node.content['arguments']['bands']]
                     available_bands = [band_properties['name'].lower() for band_properties in collection['bands']
                                        if 'name' in band_properties]

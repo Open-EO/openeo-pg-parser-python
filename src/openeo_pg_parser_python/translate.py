@@ -103,10 +103,10 @@ def walk_process_graph(process_graph, nodes, node_ids=None, level=0, prev_level=
 
     for key, value in process_graph.items():
         if isinstance(value, dict):
-            if "process_id" in value.keys():
+            if "process_id" in value.keys():  # process node found
                 node_counter = len(nodes)
                 node_id = "_".join([key, str(node_counter)])
-                node = Node(id=node_id, name=key, content=value, edges=[])
+                node = Node(id=node_id, name=key, content=value, edges=[], depth=level)
                 if node_ids:
                     filtered_node_ids = [prev_node_id for prev_node_id in node_ids if prev_node_id]
                     parent_node = nodes[filtered_node_ids[-1]]
@@ -115,8 +115,11 @@ def walk_process_graph(process_graph, nodes, node_ids=None, level=0, prev_level=
                     edge_name = "callback"
                     edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
                     node.add_edge(edge)
-                    # trim pg graph of previous node
-                    parent_node.content = replace_callback(parent_node.content, {'callback': None})
+
+                    # set parent node process graph content with child node ID if 'result' is true
+                    if ("result" in node.content.keys()) and node.content['result']:
+                        parent_node.content = replace_callback(parent_node.content,
+                                                               {'callback': {"from_node": node_id}})
 
                 nodes[node_id] = node
             else:
@@ -175,6 +178,8 @@ def walk_pg_arguments(process_graph, keys_lineage=None, key_lineage=None, level=
 
     if isinstance(process_graph, dict):
         for k, v in process_graph.items():
+            if k in ["process_graph", "callback"]:  # ignore further subgraphs
+                break
             key_lineage.append(k)
             sub_pg_graph = process_graph[k]
             level += 1
@@ -210,7 +215,7 @@ def find_node_inputs(process_graph, data_link):
     process_graph : dict
         Sub process graph/dictionary to walk through.
     data_link : str
-        Linkage name, e.g. "from_node" or "from_argument".
+        Linkage name, e.g. "from_node" or "from_parameter".
 
     Returns
     -------
@@ -245,7 +250,7 @@ def replace_callback(process_graph, value):
     """
 
     for k, v in process_graph['arguments'].items():
-        if isinstance(v, dict) and 'callback' in v.keys():
+        if isinstance(v, dict) and 'process_graph' in v.keys():
             process_graph['arguments'][k] = value
     return process_graph
 
@@ -265,12 +270,12 @@ def adjust_from_nodes(process_graph):
     """
 
     for node in process_graph.nodes:
-        pg_same_level = process_graph.find_siblings(node, link="callback", include_node=True)
+        pg_same_level = process_graph.find_partners(node, link="callback", include_node=True)
         keys_lineage = find_node_inputs(node.content, "from_node")
         for key_lineage in keys_lineage:
             data_entry = get_obj_elem_from_keys(node.content['arguments'], key_lineage)
-            if data_entry in process_graph.ids:
-                continue
+            #if data_entry in process_graph.ids:
+            #    continue
             node_other = pg_same_level.get_node_by_name(data_entry)
             if node_other:
                 set_obj_elem_from_keys(node.content['arguments'], key_lineage, "'{}'".format(node_other.id))
@@ -287,7 +292,7 @@ def adjust_from_nodes(process_graph):
 
 def adjust_from_arguments(process_graph):
     """"
-    Resets 'from_arguments' content with corresponding Node IDs.
+    Resets 'from_parameter' content with corresponding Node IDs.
 
     Parameters
     ----------
@@ -297,55 +302,34 @@ def adjust_from_arguments(process_graph):
     Returns
     -------
     graph.Graph
+
+    Notes
+    -----
+    Attention: after this routine, the graph is sorted by depth!
     """
 
+    # sort graph by depth to complete nodes at a lower level/depth first
+    process_graph = process_graph.sort(by='depth')
     for node in process_graph.nodes:
-        keys_lineage = find_node_inputs(node.content, "from_argument")
+        child_node = node.child("callback") # for callbacks the input lineage is inverted
+        keys_lineage = find_node_inputs(node.content, "from_parameter")
         for key_lineage in keys_lineage:
-            nodes_lineage = process_graph.lineage(node, link="callback", ancestors=False)  # for callbacks the input lineage is inverted
-            if nodes_lineage:
-                root_node = nodes_lineage[-1]
-                node_other = root_node.parent('data')
-                if node_other:
-                    set_obj_elem_from_keys(node.content['arguments'], key_lineage[:-1],
-                                           {'from_node': '{}'.format(node_other.id)})
-                    edge_nodes = [node_other, node]
+            if child_node:
+                node_relatives = child_node.relatives(link="data", ancestor=True)
+                node_arguments = []
+                for node_relative in node_relatives:
+                    edge_nodes = [node_relative, node]
                     edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
                     edge_name = "data"
                     edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
                     node.add_edge(edge)
+                    node_arguments.append({'from_node': '{}'.format(node_relative.id)})
+                if len(node_arguments) == 1:
+                    set_obj_elem_from_keys(node.content['arguments'], key_lineage[:-1], node_arguments[0])
+                else:
+                    set_obj_elem_from_keys(node.content['arguments'], key_lineage[:-1], node_arguments)
             else:
                 raise Exception('"from_argument" reference is wrong.')
-
-    return process_graph
-
-
-def adjust_callbacks(process_graph):
-    """
-    Resets callback with 'from_node' and corresponding Node IDs.
-
-    Parameters
-    ----------
-    process_graph : graph.Graph
-        openEO process graph as a graph object.
-
-    Returns
-    -------
-    graph.Graph
-    """
-
-    for node in process_graph.nodes:
-        node_ancestors = node.ancestors(link="callback")  # for a callback the lineage is inverted, thus the ancestors
-        if node_ancestors:
-            node_result = None
-            for node_ancestor in node_ancestors:
-                if ("result" in node_ancestor.content.keys()) and node_ancestor.content['result']:
-                    node_result = node_ancestor
-                    break
-            if node_result:
-                node.content = replace_callback(node.content, {'from_node': node_result.id})
-            else:
-                raise Exception('There must be one result node within the scope of {}'.format(node.name))
 
     return process_graph
 
@@ -375,12 +359,6 @@ def link_nodes(process_graph):
 
     # fill in all from_argument parameters
     process_graph = adjust_from_arguments(process_graph)
-
-    # update the edges of the graph
-    process_graph.update()
-
-    # fill in the callback result nodes
-    process_graph = adjust_callbacks(process_graph)
 
     # update the edges of the graph
     process_graph.update()

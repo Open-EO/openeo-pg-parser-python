@@ -1,4 +1,5 @@
 import copy
+import numpy as np
 from pprint import pformat
 from collections import OrderedDict
 
@@ -7,7 +8,7 @@ class Node:
     """
     A node of a graph, containing information about its edges, an ID, a name and a sub-graph/dictionary.
     """
-    def __init__(self, id=None, name=None, content=None, edges=None):
+    def __init__(self, id=None, name=None, content=None, edges=None, depth=None):
         """
         Constructor of `graph.Node`.
 
@@ -22,12 +23,15 @@ class Node:
             information/content stored in a node.
         edges : list of graph.Edge
             List containing all edges related to this node.
+        depth : int, optional
+            Stores depth level if the node is in a hierarchical graph.
         """
 
         self.id = id
         self.name = name
         self.content = content
         self.edges = edges
+        self.depth = depth
 
     def __str__(self):
         """
@@ -191,6 +195,10 @@ class Node:
             self.edges.append(edge)
 
         return self
+
+    def __eq__(self, other):
+        """ bool : Checks if two nodes are equal. """
+        return self.id == other.id
 
 
 class Edge(object):
@@ -421,6 +429,39 @@ class Graph(object):
 
         return Graph.from_list(nodes)
 
+    def find_partners(self, node, link=None, include_node=True):
+        """
+        Finds all nodes on the same level, i.e. which have the same child.
+
+        Parameters
+        ----------
+        node : graph.Node
+            Node for searching its partners.
+        link : str, optional
+            Link/edge name connecting two nodes.
+        include_node : bool, optional
+            If true, the given node is added to its partners (default is True).
+
+        Returns
+        -------
+        graph.Graph
+        """
+
+        nodes = []
+        child_node = node.child(link)
+        for node_other in self.nodes:
+            if node_other.id != node.id:
+                child_node_other = node_other.child(link)
+                if child_node and child_node_other and (child_node_other.id == child_node.id):
+                    nodes.append(node_other)
+                elif not child_node and not child_node_other:
+                    nodes.append(node_other)
+
+        if include_node:
+            nodes.append(node)
+
+        return Graph.from_list(nodes)
+
     def sort(self, by='dependency'):
         """
         Sorts graph according to sorting strategy.
@@ -441,12 +482,16 @@ class Graph(object):
         nodes_ordered = []
         if by == "dependency":
             for node in self.nodes:
-                insert_idx = len(nodes_ordered)
+                insert_idx = 0
                 for node_dependency in node.dependencies:
                     for idx, node_ordered in enumerate(nodes_ordered):
-                        if (idx <= insert_idx) and (node_dependency.id == node_ordered.id):
+                        if (idx >= insert_idx) and (node_dependency.id == node_ordered.id):
                             insert_idx = idx + 1  # place the node after the dependency
                 nodes_ordered.insert(insert_idx, node)
+        elif by == "depth":
+            depths = [node.depth for node in self.nodes]
+            order = np.argsort(depths)
+            nodes_ordered = np.array(list(self.nodes))[order].tolist()
         else:
             err_msg = "Sorting strategy '{}' unknown ".format(by)
             raise ValueError(err_msg)
