@@ -5,6 +5,7 @@ from openeo_pg_parser_python.graph import OpenEONode, Edge, Graph
 from openeo_pg_parser_python.utils import set_obj_elem_from_keys
 from openeo_pg_parser_python.utils import get_obj_elem_from_keys
 from openeo_pg_parser_python.utils import load_processes
+from openeo_pg_parser_python.utils import load_json_file
 
 def walk_process_graph(process_graph, nodes, process_defs, node_ids=None, level=0, prev_level=0):
     """
@@ -391,7 +392,7 @@ def translate_process_graph(pg_filepath, process_defs=None, parameters=None):
     """
 
     if isinstance(pg_filepath, str):
-        process_graph = load(open(pg_filepath))
+        process_graph = load_json_file(pg_filepath)
     elif isinstance(pg_filepath, dict):
         process_graph = pg_filepath
     else:

@@ -18,21 +18,17 @@ class ValidateTester(unittest.TestCase):
     def test_validate_process_graph_local(self):
         """ Validate a process graph using processes defined on a backend. """
 
-        warnings.filterwarnings("ignore")  # suppress warnings caused by validation
-
         collections_url = "https://earthengine.openeo.org/v1.0/collections"
 
         valid = validate_process_graph(self.max_ndvi_pg_filepath, collections_url)
-        assert not valid  # not valid because not all processes and collections are available
+        assert valid
 
 
     def test_validate_process_graph_remote(self):
         """ Validate a process graph using remote specified processes and collections. """
 
-        valid = validate_process_graph(self.max_ndvi_pg_filepath,
-                                       processes_src="https://earthengine.openeo.org/v1.0/processes",
-                                       collections_src="https://earthengine.openeo.org/v1.0/collections")
-
+        valid = validate_process_graph(self.max_ndvi_pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
+                                       processes_src="https://earthengine.openeo.org/v1.0/processes")
         assert valid
 
 
@@ -41,9 +37,8 @@ class ValidateTester(unittest.TestCase):
 
         warnings.filterwarnings("ignore")  # suppress warnings caused by validation
 
-        valid = validate_process_graph(self.wrong_band_filepath,
-                                       processes_src="https://earthengine.openeo.org/v1.0/processes",
-                                       collections_src="https://earthengine.openeo.org/v1.0/collections")
+        valid = validate_process_graph(self.wrong_band_filepath, "https://earthengine.openeo.org/v1.0/collections",
+                                       processes_src="https://earthengine.openeo.org/v1.0/processes")
 
         assert valid  # TODO: should be not valid: no band information at the GEE backend?
 

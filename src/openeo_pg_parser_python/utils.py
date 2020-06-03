@@ -4,6 +4,27 @@ import copy
 import requests
 from json import load
 
+def url_is_valid(url):
+    """
+    Very simple check if URL exists/is valid or not.
+
+    Parameters
+    ----------
+    url : str
+        URL to validate.
+
+    Returns
+    -------
+    bool
+
+    """
+    try:
+        r = requests.get(url=url)
+        if r.status_code != 200:
+            return False
+        return True
+    except:
+        return False
 
 def load_json_file(filepath):
     """
@@ -48,14 +69,10 @@ def load_processes(src):
         if isinstance(src, str) and os.path.isdir(src):
             filepaths = glob.glob(os.path.join(src, "*.json"))
             process_list = [load_json_file(filepath) for filepath in filepaths]
-        elif isinstance(src, str):
+        elif isinstance(src, str) and url_is_valid(src):
             r = requests.get(url=src)
-            if r.status_code == 200:
-                data = r.json()
-                process_list = data['processes']
-            else:
-                err_msg = "The specified URL is wrong."
-                raise ValueError(err_msg)
+            data = r.json()
+            process_list = data['processes']
         elif isinstance(src, list):
             process_list = src
         else:
@@ -96,14 +113,10 @@ def load_collections(src):
         if isinstance(src, str) and os.path.isdir(src):
             filepaths = glob.glob(os.path.join(src, "*.json"))
             collection_list = [load_json_file(filepath) for filepath in filepaths]
-        elif isinstance(src, str):
+        elif isinstance(src, str) and url_is_valid(src):
             r = requests.get(url=src)
-            if r.status_code == 200:
-                data = r.json()
-                collection_list = data['collections']
-            else:
-                err_msg = "The specified URL is wrong."
-                raise ValueError(err_msg)
+            data = r.json()
+            collection_list = data['collections']
         elif isinstance(src, list):
             collection_list = src
         else:

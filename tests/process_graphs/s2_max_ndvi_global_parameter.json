@@ -109,7 +109,7 @@
                   "from_node": "nir"
                 },
                 "y": {
-                  "from_node": "red"
+                  "from_parameter": "test_from_parameter"
                 }
               },
               "result": true

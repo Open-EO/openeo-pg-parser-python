@@ -128,7 +128,7 @@ def validate_process_graph(pg_filepath, collections_src, processes_src=None, par
 
     """
     # define source of process definitions
-    process_defs = os.path.join(os.path.dirname(__file__), "..", "processes") \
+    process_defs = os.path.join(os.path.dirname(__file__), "..", "..", "processes") \
         if processes_src is None else processes_src
 
     process_graph = translate_process_graph(pg_filepath, process_defs=process_defs, parameters=parameters)
