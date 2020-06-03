@@ -30,21 +30,18 @@ def validate_processes(process_graph, processes_src):
 
     valid = True
     for node in process_graph.nodes:
-        if node.content['process_id'] not in process_defs.keys():
+        if node.process_id not in process_defs.keys():
             valid = False
-            wrn_msg = "'{}' is not in the current set of process definitions.".format(node.content['process_id'])
+            wrn_msg = "'{}' is not in the current set of process definitions.".format(node.process_id)
             warnings.warn(wrn_msg)
         else:
-            process_def = process_defs[node.content['process_id']]
-            # check all parameters
-            # NB key 'parameters' is used in the processes' definition
-            # NB key 'arguments' is used in the process graph
-            for parameter_def in process_def['parameters']:
-                if 'required' in parameter_def:
-                    if parameter_def['name'] not in node.content['arguments'].keys():
+            # First, check if required parameter is set in the process graph
+            for parameter in node.process.parameters:
+                if not parameter.is_optional:
+                    if parameter.name not in node.arguments.keys():
                         valid = False
-                        wrn_msg = "Parameter '{}' is required for process '{}'".format(parameter_def['name'],
-                                                                                       node.content['process_id'])
+                        wrn_msg = "Parameter '{}' is required for process '{}'".format(parameter.name,
+                                                                                       node.process_id)
                         warnings.warn(wrn_msg)
 
     return valid
@@ -74,16 +71,16 @@ def validate_collections(process_graph, collections_src):
 
     valid = True
     for node in process_graph.nodes:
-        if node.content['process_id'] == 'load_collection':
-            if node.content['arguments']['id'] not in collection_defs.keys():
+        if node.process_id == 'load_collection':
+            if node.arguments['id'] not in collection_defs.keys():
                 valid = False
-                wrn_msg = "'{}' is not in the current set of collections.".format(node.content['arguments']['id'])
+                wrn_msg = "'{}' is not in the current set of collections.".format(node.arguments['id'])
                 warnings.warn(wrn_msg)
             else:
-                collection = collection_defs[node.content['arguments']['id']]
+                collection = collection_defs[node.arguments['id']]
                 # check bands
-                if 'bands' in node.content['arguments'] and 'bands' in collection:
-                    node_bands = [band.lower() for band in node.content['arguments']['bands']]
+                if 'bands' in node.arguments.keys() and 'bands' in collection:
+                    node_bands = [band.lower() for band in node.arguments['bands']]
                     available_bands = [band_properties['name'].lower() for band_properties in collection['bands']
                                        if 'name' in band_properties]
                     for node_band in node_bands:

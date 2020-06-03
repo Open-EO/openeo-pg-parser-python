@@ -2,6 +2,7 @@ import copy
 import numpy as np
 from pprint import pformat
 from collections import OrderedDict
+from openeo_pg_parser_python.definitions import OpenEOProcess
 
 
 class Node:
@@ -517,3 +518,98 @@ class Graph(object):
         return self
 
 
+class OpenEONode(Node):
+    """
+    A node of an openEO process graph, containing information about its edges, an ID, a name, its arguments,
+    a description and so on.
+
+    """
+
+    def __init__(self, id=None, name=None, content=None, edges=None, depth=None, processes_src=None):
+        """
+        Constructor of `graph.Node`.
+
+        Parameters
+        ----------
+        id : int or str, optional
+            An ID for finding a node in a graph.
+        name : str, optional
+            Name of the node.
+        content : dictionary or object, optional
+            A sub-graph/dictionary (e.g., sub process graph in openEO) or an arbitrary object representing the
+            information/content stored in a node.
+        edges : list of graph.Edge
+            List containing all edges related to this node.
+        depth : int, optional
+            Stores depth level if the node is in a hierarchical graph.
+        processes_src : dict or str or list, optional
+            It can be:
+                - dictionary of loaded process definitions (keys are the process ID's)
+                - directory path to processes (.json)
+                - URL of the remote process endpoint (e.g., "https://earthengine.openeo.org/v1.0/processes")
+                - list of loaded process definitions
+
+        """
+        super().__init__(id=id, name=name, content=content, edges=edges, depth=depth)
+
+        self.process = OpenEOProcess.from_name(self.process_id, src=processes_src)
+
+    @property
+    def process_id(self):
+        """ str : returns the process ID of an openEO process. """
+        return None if self.content is None else self.content['process_id']
+
+    @property
+    def arguments(self):
+        """ dict : returns the arguments of an openEO process. """
+
+        if self.content is not None:
+            exp_args = self.process.parameters
+            args = self.content['arguments']
+            for exp_arg_name in exp_args.keys():
+                if exp_arg_name not in args.keys():
+                    args[exp_arg_name] = exp_args[exp_arg_name]
+            return args
+        else:
+            return None
+
+    @property
+    def parent_process(self):
+        """ list of graph.Node : Returns the parent process node. """
+        parents = self.descendants("callback")
+        if len(parents) > 1:
+            err_msg = "Only one parent process is allowed."
+            raise Exception(err_msg)
+        else:
+            return parents[0] if len(parents) == 1 else None
+
+    @property
+    def child_processes(self):
+        """ list of graph.Node : Returns the child process nodes. """
+        return self.ancestors("callback")
+
+    @property
+    def description(self):
+        """ str : returns the description of an openEO process. """
+        return self.content['description'] \
+            if (self.content is not None) and ('description' in self.content.keys()) else None
+
+    @property
+    def is_result(self):
+        """ bool : returns the result value of an openEO process, i.e. if this node is a result node or not. """
+        is_result = False
+        if (self.content is not None) and ("result" in self.content.keys()):
+            is_result = self.content['result']
+
+        return is_result
+
+    @property
+    def is_reducer(self):
+        """ bool : Checks if the current process is a reducer or not. """
+        return self.process.is_reducer
+
+    @property
+    def dimension(self):
+        """ str : Returns the dimension over which is reduced if the process is a reducer. """
+        if self.is_reducer:
+            return self.arguments['dimension']

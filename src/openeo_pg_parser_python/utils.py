@@ -1,5 +1,6 @@
 import os
 import glob
+import copy
 import requests
 from json import load
 
@@ -96,3 +97,71 @@ def load_collections(src):
             collections[collection.id] = collection
 
     return collections
+
+
+def keys2str(keys):
+    """
+    Converts list of keys to a string, which can be used for indexing (e.g., a dictionary).
+
+    Parameters
+    ----------
+    keys : list of str
+        List of keys.
+
+    Returns
+    -------
+    str
+        Indexing string.
+    """
+
+    key_str = ""
+    for key in keys:
+        if isinstance(key, str):
+            key = "'{}'".format(key)
+        key_str += "[{}]".format(key)
+
+    return key_str
+
+def get_obj_elem_from_keys(obj, keys):
+    """
+    Returns values stored in `obj` by using a list of keys for indexing.
+
+    Parameters
+    ----------
+    obj : object
+        Python object offering indexing, e.g., a dictionary.
+    keys : list of str
+        List of keys for indexing.
+
+    Returns
+    -------
+    object
+        Values of the indexed object.
+    """
+
+    key_str = keys2str(keys)
+    return copy.deepcopy(eval('obj' + key_str))
+
+
+def set_obj_elem_from_keys(obj, keys, value):
+    """
+    Sets values in `obj` by using a list of keys for indexing.
+
+    Parameters
+    ----------
+    obj : object
+        Python object offering indexing, e.g., a dictionary.
+    keys : list of str
+        List of keys for indexing.
+    value : object
+        Python object to store in `obj`.
+
+    Returns
+    -------
+    object
+        Reset object including the given `value`.
+    """
+
+    key_str = keys2str(keys)
+    exec('obj{}={}'.format(key_str, value))
+    return obj

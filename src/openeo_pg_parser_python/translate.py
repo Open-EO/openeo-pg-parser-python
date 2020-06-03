@@ -1,79 +1,11 @@
-import copy
 from json import load
 from collections import OrderedDict
-from openeo_pg_parser_python.graph import Node, Edge, Graph
+from openeo_pg_parser_python.graph import OpenEONode, Edge, Graph
+from openeo_pg_parser_python.utils import set_obj_elem_from_keys
+from openeo_pg_parser_python.utils import get_obj_elem_from_keys
+from openeo_pg_parser_python.utils import load_processes
 
-
-def keys2str(keys):
-    """
-    Converts list of keys to a string, which can be used for indexing (e.g., a dictionary).
-
-    Parameters
-    ----------
-    keys : list of str
-        List of keys.
-
-    Returns
-    -------
-    str
-        Indexing string.
-    """
-
-    key_str = ""
-    for key in keys:
-        if isinstance(key, str):
-            key = "'{}'".format(key)
-        key_str += "[{}]".format(key)
-
-    return key_str
-
-
-def get_obj_elem_from_keys(obj, keys):
-    """
-    Returns values stored in `obj` by using a list of keys for indexing.
-
-    Parameters
-    ----------
-    obj : object
-        Python object offering indexing, e.g., a dictionary.
-    keys : list of str
-        List of keys for indexing.
-
-    Returns
-    -------
-    object
-        Values of the indexed object.
-    """
-
-    key_str = keys2str(keys)
-    return copy.deepcopy(eval('obj' + key_str))
-
-
-def set_obj_elem_from_keys(obj, keys, value):
-    """
-    Sets values in `obj` by using a list of keys for indexing.
-
-    Parameters
-    ----------
-    obj : object
-        Python object offering indexing, e.g., a dictionary.
-    keys : list of str
-        List of keys for indexing.
-    value : object
-        Python object to store in `obj`.
-
-    Returns
-    -------
-    object
-        Reset object including the given `value`.
-    """
-
-    key_str = keys2str(keys)
-    exec('obj{}={}'.format(key_str, value))
-    return obj
-
-
-def walk_process_graph(process_graph, nodes, node_ids=None, level=0, prev_level=0):
+def walk_process_graph(process_graph, processes_src, nodes, node_ids=None, level=0, prev_level=0):
     """
     Recursively walks through an openEO process graph dictionary and transforms the dictionary into a list of graph
     nodes.
@@ -100,16 +32,19 @@ def walk_process_graph(process_graph, nodes, node_ids=None, level=0, prev_level=
     level : int
     prev_level : int
     """
+    process_defs = load_processes(processes_src)
 
     for key, value in process_graph.items():
         if isinstance(value, dict):
             if "process_id" in value.keys():  # process node found
                 node_counter = len(nodes)
                 node_id = "_".join([key, str(node_counter)])
-                node = Node(id=node_id, name=key, content=value, edges=[], depth=level)
+                node = OpenEONode(id=node_id, name=key, content=value, edges=[], depth=level,
+                                  processes_src=process_defs)
                 if node_ids:
                     filtered_node_ids = [prev_node_id for prev_node_id in node_ids if prev_node_id]
-                    parent_node = nodes[filtered_node_ids[-1]]
+                    parent_node_id = filtered_node_ids[-1]
+                    parent_node = nodes[parent_node_id]
                     edge_nodes = [node, parent_node] # for a callback the parent node comes after the node
                     edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
                     edge_name = "callback"
@@ -117,8 +52,8 @@ def walk_process_graph(process_graph, nodes, node_ids=None, level=0, prev_level=
                     node.add_edge(edge)
 
                     # set parent node process graph content with child node ID if 'result' is true
-                    if ("result" in node.content.keys()) and node.content['result']:
-                        parent_node.content = replace_callback(parent_node.content, {"from_node": node_id})
+                    if node.is_result:
+                        nodes[parent_node_id] = replace_callback(parent_node, {"from_node": node_id})
 
                 nodes[node_id] = node
             else:
@@ -177,7 +112,7 @@ def walk_pg_arguments(process_graph, keys_lineage=None, key_lineage=None, level=
 
     if isinstance(process_graph, dict):
         for k, v in process_graph.items():
-            if k in ["process_graph", "callback"]:  # ignore further subgraphs
+            if k == "process_graph":  # ignore further subgraphs
                 break
             key_lineage.append(k)
             sub_pg_graph = process_graph[k]
@@ -205,14 +140,14 @@ def walk_pg_arguments(process_graph, keys_lineage=None, key_lineage=None, level=
     return keys_lineage, key_lineage, level, prev_level
 
 
-def find_node_inputs(process_graph, data_link):
+def find_node_inputs(node, data_link):
     """
     Find input node IDs corresponding to a given linkage for a sub process graph.
 
     Parameters
     ----------
-    process_graph : dict
-        Sub process graph/dictionary to walk through.
+    node : openEONode
+        Node of interest.
     data_link : str
         Linkage name, e.g. "from_node" or "from_parameter".
 
@@ -223,7 +158,7 @@ def find_node_inputs(process_graph, data_link):
     """
 
     keys_lineage = []
-    for key, value in process_graph['arguments'].items():
+    for key, value in node.arguments.items():
         keys_lineage_arg, _, _, _ = walk_pg_arguments(value)
         if keys_lineage_arg:
             keys_lineage.extend([[key] + elem for elem in keys_lineage_arg if elem[-1] == data_link])
@@ -231,14 +166,14 @@ def find_node_inputs(process_graph, data_link):
     return keys_lineage
 
 
-def replace_callback(process_graph, value):
+def replace_callback(node, value):
     """
     Removes redundant callback layer.
 
     Parameters
     ----------
-    process_graph : dict
-        Sub process graph/dictionary.
+    node : openEONode
+        Node of interest.
     value : object
         Python object to store in `process_graph`.
 
@@ -248,10 +183,10 @@ def replace_callback(process_graph, value):
         Sub process graph/dictionary.
     """
 
-    for k, v in process_graph['arguments'].items():
+    for k, v in node.arguments.items():
         if isinstance(v, dict) and 'process_graph' in v.keys():
-            process_graph['arguments'][k] = value
-    return process_graph
+            node.content['arguments'][k] = value
+    return node
 
 
 def adjust_from_nodes(process_graph):
@@ -270,7 +205,7 @@ def adjust_from_nodes(process_graph):
 
     for node in process_graph.nodes:
         pg_same_level = process_graph.find_partners(node, link="callback", include_node=True)
-        keys_lineage = find_node_inputs(node.content, "from_node")
+        keys_lineage = find_node_inputs(node, "from_node")
         for key_lineage in keys_lineage:
             data_entry = get_obj_elem_from_keys(node.content['arguments'], key_lineage)
             if data_entry in process_graph.ids:  # data entry already exists as it was created during the recursive walk
@@ -289,7 +224,7 @@ def adjust_from_nodes(process_graph):
     return process_graph
 
 
-def adjust_from_arguments(process_graph):
+def adjust_from_parameters(process_graph, parameters=None):
     """"
     Resets 'from_parameter' content with corresponding Node IDs.
 
@@ -297,6 +232,8 @@ def adjust_from_arguments(process_graph):
     ----------
     process_graph : graph.Graph
         openEO process graph as a graph object.
+    parameters : dict, optional
+        Globally defined parameters, which can be used in 'from_parameter'.
 
     Returns
     -------
@@ -305,35 +242,62 @@ def adjust_from_arguments(process_graph):
     Notes
     -----
     Attention: after this routine, the graph is sorted by depth!
+
     """
+    parameters = {} if parameters is None else parameters
 
     # sort graph by depth to complete nodes at a lower level/depth first
     process_graph = process_graph.sort(by='depth')
     for node in process_graph.nodes:
-        child_node = node.child("callback") # for callbacks the input lineage is inverted
-        keys_lineage = find_node_inputs(node.content, "from_parameter")
+
+        keys_lineage = find_node_inputs(node, "from_parameter")
         for key_lineage in keys_lineage:
-            if child_node:
-                node_relatives = child_node.relatives(link="data", ancestor=True)
-                node_arguments = []
-                for node_relative in node_relatives:
-                    edge_nodes = [node_relative, node]
-                    edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
-                    edge_name = "data"
-                    edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
-                    node.add_edge(edge)
-                    node_arguments.append({'from_node': '{}'.format(node_relative.id)})
-                if len(node_arguments) == 1:
-                    set_obj_elem_from_keys(node.content['arguments'], key_lineage[:-1], node_arguments[0])
-                else:
-                    set_obj_elem_from_keys(node.content['arguments'], key_lineage[:-1], node_arguments)
-            else:
-                raise Exception('"from_argument" reference is wrong.')
+            from_parameter_name = get_obj_elem_from_keys(node.content, key_lineage)
+            parent_nodes = process_graph.lineage(node, link="callback", ancestors=False)  # get all higher level process-graphs, starting from the embedded one
+            parameter_found = False
+            for parent_node in parent_nodes:  # backtrace as long a parent process exists
+                process = parent_node.process
+                # First, check if parameter is contained in sub-process
+                if process.sub_process is not None:
+                    if from_parameter_name in process.sub_process.parameters.keys():
+                        parameter_found = True
+                # Second, check if parameter is contained in process
+                if not parameter_found:
+                    if from_parameter_name in process.parameters.keys():
+                        parameter_found = True
+
+                if parameter_found:
+                    node_relatives = parent_node.relatives(link="data", ancestor=True)  # TODO: check if "data" always suffices
+                    node_arguments = []
+                    for node_relative in node_relatives:
+                        edge_nodes = [node_relative, node]
+                        edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
+                        edge_name = "data"
+                        edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
+                        node.add_edge(edge)
+                        node_arguments.append({'from_node': '{}'.format(node_relative.id)})
+                    if len(node_arguments) == 1:
+                        set_obj_elem_from_keys(node.content['arguments'], key_lineage[:-1], node_arguments[0])
+                    else:
+                        set_obj_elem_from_keys(node.content['arguments'], key_lineage[:-1], node_arguments)
+                    break
+
+            # if the parameter name is still not available, try to look into the globally defined parameters
+            if not parameter_found:
+                if from_parameter_name in parameters.keys():
+                    parameter_found = True
+                    set_obj_elem_from_keys(node.content['arguments'], key_lineage[:-1], parameters[from_parameter_name])
+
+            # parameter seems not to be available, raise an error
+            if not parameter_found:
+                err_msg = "'from_parameter' reference name '{}' " \
+                          "can't be found or is not defined.".format(from_parameter_name)
+                raise ValueError(err_msg)
 
     return process_graph
 
 
-def link_nodes(process_graph):
+def link_nodes(process_graph, parameters=None):
     """
     Links all nodes in the graph, i.e. links 'from_node', 'from_argument' and 'callback' with the corresponding
     Node IDs.
@@ -342,11 +306,14 @@ def link_nodes(process_graph):
     Parameters
     ----------
     process_graph : graph.Graph
-
+        Process graph to connect the nodes within.
+    parameters : dict, optional
+        Globally defined parameters, which can be used in 'from_parameter'.
 
     Returns
     -------
     graph.Graph
+
     """
 
 
@@ -357,7 +324,7 @@ def link_nodes(process_graph):
     process_graph.update()
 
     # fill in all from_argument parameters
-    process_graph = adjust_from_arguments(process_graph)
+    process_graph = adjust_from_parameters(process_graph, parameters=parameters)
 
     # update the edges of the graph
     process_graph.update()
@@ -365,7 +332,7 @@ def link_nodes(process_graph):
     return process_graph
 
 
-def translate_process_graph(pg_filepath):
+def translate_process_graph(pg_filepath, parameters=None):
     """
     Translates an openEO process graph into a graph.Graph object.
 
@@ -373,11 +340,14 @@ def translate_process_graph(pg_filepath):
     ----------
     pg_filepath : str or dict
         openEO process graph given as full file path or a stacked dictionary.
+    parameters : dict, optional
+        Globally defined parameters, which can be used in 'from_parameter'.
 
     Returns
     -------
     graph.Graph
         Parsed openEO process graph.
+
     """
 
     if isinstance(pg_filepath, str):
@@ -394,7 +364,7 @@ def translate_process_graph(pg_filepath):
     process_graph = Graph(nodes)
 
     # link all nodes and fill in from_node and from_argument
-    process_graph = link_nodes(process_graph)
+    process_graph = link_nodes(process_graph, parameters=parameters)
 
     return process_graph
 
