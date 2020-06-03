@@ -1,3 +1,4 @@
+import os
 import warnings
 from openeo_pg_parser_python.translate import translate_process_graph
 from openeo_pg_parser_python.utils import load_processes
@@ -36,7 +37,7 @@ def validate_processes(process_graph, processes_src):
             warnings.warn(wrn_msg)
         else:
             # First, check if required parameter is set in the process graph
-            for parameter in node.process.parameters:
+            for parameter in node.process.parameters.values():
                 if not parameter.is_optional:
                     if parameter.name not in node.arguments.keys():
                         valid = False
@@ -96,7 +97,7 @@ def validate_collections(process_graph, collections_src):
 
     return valid
 
-def validate_process_graph(pg_filepath, processes_src, collections_src):
+def validate_process_graph(pg_filepath, collections_src, processes_src=None, parameters=None):
     """
     Validate the input process graph according to the given list of processes.
 
@@ -104,28 +105,35 @@ def validate_process_graph(pg_filepath, processes_src, collections_src):
     ----------
     pg_filepath : str or dict
         Filepath to process graph (json file) or parsed file as a dictionary.
-    processes_src : dict or str or list
-        It can be:
-            - dictionary of loaded process definitions (keys are the process ID's)
-            - directory path to processes (.json)
-            - URL of the remote process endpoint (e.g., "https://earthengine.openeo.org/v1.0/processes")
-            - list of loaded process definitions
-    collections_src : dict or str or list, optional
+    collections_src : dict or str or list
         It can be:
             - dictionary of loaded collection definitions (keys are the collection ID's)
             - directory path to collections (.json)
             - URL of the remote collection endpoint (e.g., "https://earthengine.openeo.org/v1.0/collections")
             - list of loaded collection definitions
+    processes_src : dict or str or list, optional
+        It can be:
+            - dictionary of loaded process definitions (keys are the process ID's)
+            - directory path to processes (.json)
+            - URL of the remote process endpoint (e.g., "https://earthengine.openeo.org/v1.0/processes")
+            - list of loaded process definitions
+        The default value points to the "processes" repository of the parser.
+    parameters : dict, optional
+        Globally defined parameters, which can be used in 'from_parameter'.
 
     Returns
     -------
     valid : bool
         If True, the given process graph is valid with respect to the given process definitions.
+
     """
+    # define source of process definitions
+    process_defs = os.path.join(os.path.dirname(__file__), "..", "processes") \
+        if processes_src is None else processes_src
 
-    process_graph = translate_process_graph(pg_filepath)
+    process_graph = translate_process_graph(pg_filepath, process_defs=process_defs, parameters=parameters)
 
-    processes_valid = validate_processes(process_graph, processes_src)
+    processes_valid = validate_processes(process_graph, process_defs)
     collections_valid = validate_collections(process_graph, collections_src)
 
     process_graph_valid = processes_valid & collections_valid

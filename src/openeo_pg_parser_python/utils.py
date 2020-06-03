@@ -4,6 +4,24 @@ import copy
 import requests
 from json import load
 
+
+def load_json_file(filepath):
+    """
+    Loads json file as dictionary.
+
+    Parameters
+    ----------
+    filepath : str
+        Full file path to JSON file.
+
+    Returns
+    -------
+    dict
+
+    """
+    with open(filepath) as file:
+        return load(file)
+
 def load_processes(src):
     """
     Collects process definitions from a local process directory, from a URL or a list of process definitions.
@@ -29,7 +47,7 @@ def load_processes(src):
     else:
         if isinstance(src, str) and os.path.isdir(src):
             filepaths = glob.glob(os.path.join(src, "*.json"))
-            process_list = [load(open(filepath)) for filepath in filepaths]
+            process_list = [load_json_file(filepath) for filepath in filepaths]
         elif isinstance(src, str):
             r = requests.get(url=src)
             if r.status_code == 200:
@@ -46,7 +64,7 @@ def load_processes(src):
 
         processes = {}
         for process in process_list:
-            processes[process.id] = process
+            processes[process['id']] = process
 
     return processes
 
@@ -77,7 +95,7 @@ def load_collections(src):
     else:
         if isinstance(src, str) and os.path.isdir(src):
             filepaths = glob.glob(os.path.join(src, "*.json"))
-            collection_list = [load(open(filepath)) for filepath in filepaths]
+            collection_list = [load_json_file(filepath) for filepath in filepaths]
         elif isinstance(src, str):
             r = requests.get(url=src)
             if r.status_code == 200:
@@ -94,7 +112,7 @@ def load_collections(src):
 
         collections = {}
         for collection in collection_list:
-            collections[collection.id] = collection
+            collections[collection['id']] = collection
 
     return collections
 

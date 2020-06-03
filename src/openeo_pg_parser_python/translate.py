@@ -1,3 +1,4 @@
+import os
 from json import load
 from collections import OrderedDict
 from openeo_pg_parser_python.graph import OpenEONode, Edge, Graph
@@ -5,7 +6,7 @@ from openeo_pg_parser_python.utils import set_obj_elem_from_keys
 from openeo_pg_parser_python.utils import get_obj_elem_from_keys
 from openeo_pg_parser_python.utils import load_processes
 
-def walk_process_graph(process_graph, processes_src, nodes, node_ids=None, level=0, prev_level=0):
+def walk_process_graph(process_graph, nodes, process_defs, node_ids=None, level=0, prev_level=0):
     """
     Recursively walks through an openEO process graph dictionary and transforms the dictionary into a list of graph
     nodes.
@@ -16,6 +17,12 @@ def walk_process_graph(process_graph, processes_src, nodes, node_ids=None, level
         Dictionary to walk through.
     nodes : collections.OrderedDict
         Ordered dictionary containing the node IDs as keys and the `graph.Node` instances as values.
+    process_defs : dict or str or list
+        It can be:
+            - dictionary of loaded process definitions (keys are the process ID's)
+            - directory path to processes (.json)
+            - URL of the remote process endpoint (e.g., "https://earthengine.openeo.org/v1.0/processes")
+            - list of loaded process definitions
     node_ids : list, optional
         List of Node ID's for one dictionary branch (only internally used in the recursive process, can be ignored)
     level : int, optional
@@ -31,8 +38,10 @@ def walk_process_graph(process_graph, processes_src, nodes, node_ids=None, level
     node_ids : list
     level : int
     prev_level : int
+
     """
-    process_defs = load_processes(processes_src)
+
+    process_defs = load_processes(process_defs)
 
     for key, value in process_graph.items():
         if isinstance(value, dict):
@@ -51,10 +60,6 @@ def walk_process_graph(process_graph, processes_src, nodes, node_ids=None, level
                     edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
                     node.add_edge(edge)
 
-                    # set parent node process graph content with child node ID if 'result' is true
-                    if node.is_result:
-                        nodes[parent_node_id] = replace_callback(parent_node, {"from_node": node_id})
-
                 nodes[node_id] = node
             else:
                 node_id = None
@@ -65,8 +70,8 @@ def walk_process_graph(process_graph, processes_src, nodes, node_ids=None, level
             node_ids.append(node_id)
             prev_level = level
             level += 1
-            nodes, node_ids, level, prev_level = walk_process_graph(value, nodes, node_ids=node_ids, level=level,
-                                                                    prev_level=prev_level)
+            nodes, node_ids, level, prev_level = walk_process_graph(value, nodes, process_defs, node_ids=node_ids,
+                                                                    level=level, prev_level=prev_level)
 
     level += -1
     if node_ids:
@@ -201,6 +206,7 @@ def adjust_from_nodes(process_graph):
     Returns
     -------
     graph.Graph
+
     """
 
     for node in process_graph.nodes:
@@ -252,7 +258,7 @@ def adjust_from_parameters(process_graph, parameters=None):
 
         keys_lineage = find_node_inputs(node, "from_parameter")
         for key_lineage in keys_lineage:
-            from_parameter_name = get_obj_elem_from_keys(node.content, key_lineage)
+            from_parameter_name = get_obj_elem_from_keys(node.content['arguments'], key_lineage)
             parent_nodes = process_graph.lineage(node, link="callback", ancestors=False)  # get all higher level process-graphs, starting from the embedded one
             parameter_found = False
             for parent_node in parent_nodes:  # backtrace as long a parent process exists
@@ -297,6 +303,30 @@ def adjust_from_parameters(process_graph, parameters=None):
     return process_graph
 
 
+def adjust_callbacks(process_graph):
+    """
+    Resets embedded process graphs with their respective callback node ID.
+
+    Parameters
+    ----------
+    process_graph : graph.Graph
+        openEO process graph as a graph object.
+
+    Returns
+    -------
+    graph.Graph
+
+    """
+
+    for node in process_graph.nodes:
+        # set parent node process graph content with child node ID if 'result' is true
+        if node.is_result and node.parent_process is not None:
+            parent_node = node.parent_process
+            parent_node = replace_callback(parent_node, {"from_node": node.id})
+
+    return process_graph
+
+
 def link_nodes(process_graph, parameters=None):
     """
     Links all nodes in the graph, i.e. links 'from_node', 'from_argument' and 'callback' with the corresponding
@@ -329,10 +359,13 @@ def link_nodes(process_graph, parameters=None):
     # update the edges of the graph
     process_graph.update()
 
+    # replace all embedded process graphs with the respective node IDs
+    process_graph = adjust_callbacks(process_graph)
+
     return process_graph
 
 
-def translate_process_graph(pg_filepath, parameters=None):
+def translate_process_graph(pg_filepath, process_defs=None, parameters=None):
     """
     Translates an openEO process graph into a graph.Graph object.
 
@@ -340,6 +373,13 @@ def translate_process_graph(pg_filepath, parameters=None):
     ----------
     pg_filepath : str or dict
         openEO process graph given as full file path or a stacked dictionary.
+    process_defs : dict or str or list, optional
+        It can be:
+            - dictionary of loaded process definitions (keys are the process ID's)
+            - directory path to processes (.json)
+            - URL of the remote process endpoint (e.g., "https://earthengine.openeo.org/v1.0/processes")
+            - list of loaded process definitions
+        The default value points to the "processes" repository of the parser.
     parameters : dict, optional
         Globally defined parameters, which can be used in 'from_parameter'.
 
@@ -357,8 +397,21 @@ def translate_process_graph(pg_filepath, parameters=None):
     else:
         raise ValueError("'pg_filepath must either be file path to a JSON file or a dictionary.'")
 
+    # remove first layer of the process graph
+    if "process_graph" in process_graph.keys():
+        process_graph = process_graph['process_graph']
+    else:
+        err_msg = "Process graph structure is invalid: " \
+                  "Processes need to be declared/wrapped inside 'process_graph' layer."
+        raise Exception(err_msg)
+
+    # define source of process definitions
+    process_defs = os.path.join(os.path.dirname(__file__), "..", "..", "processes") \
+        if process_defs is None else process_defs
+
+    # traverse process graph
     nodes = OrderedDict()
-    nodes, _, _, _ = walk_process_graph(process_graph, nodes)
+    nodes, _, _, _ = walk_process_graph(process_graph, nodes, process_defs)
 
     # create graph object
     process_graph = Graph(nodes)

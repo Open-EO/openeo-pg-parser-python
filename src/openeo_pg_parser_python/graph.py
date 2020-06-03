@@ -565,7 +565,7 @@ class OpenEONode(Node):
 
         if self.content is not None:
             exp_args = self.process.parameters
-            args = self.content['arguments']
+            args = copy.deepcopy(self.content['arguments'])
             for exp_arg_name in exp_args.keys():
                 if exp_arg_name not in args.keys():
                     args[exp_arg_name] = exp_args[exp_arg_name]

@@ -64,7 +64,7 @@ class OpenEOProcess:
 
         # use standard directory
         if src is None:
-            src = os.path.join("..", "..", "processes")
+            src = os.path.join(os.path.dirname(__file__), "..", "..", "processes")
 
         processes = load_processes(src)
 
@@ -187,3 +187,15 @@ class OpenEOParameter:
     def _has_optional(self):
         """ bool : Checks if default 'optional' argument is given. """
         return 'optional' in self.definition.keys()
+
+    def __str__(self):
+        """
+        String representation of this class, i.e.,
+        the dictionary representation.
+
+        Returns
+        -------
+        str
+
+        """
+        return str(self.definition)

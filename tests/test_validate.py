@@ -14,25 +14,17 @@ class ValidateTester(unittest.TestCase):
         self.wrong_band_filepath = os.path.join(pg_dirpath, "test_s2_wrong_band.json")
         self.max_ndvi_pg_filepath = os.path.join(pg_dirpath, "s2_max_ndvi.json")
 
-    # TODO: Fix local process definitions first
-    # def test_validate_process_graph_local():
-    #     """ Validate a process graph using processes defined on a backend. """
-    #
-    #     warnings.filterwarnings("ignore")  # suppress warnings caused by validation
-    #
-    #     collections_url = "https://earthengine.openeo.org/v1.0/collections"
-    #
-    #     # Validate input file
-    #     valid = validate_process_graph(os.path.join(PG_FOLDER, "s2_max_ndvi.json"),
-    #                                    processes_src=LOCAL_PROCESSES_FOLDER,
-    #                                    collections_src=collections_url)
-    #     assert not valid  # not valid because not all processes and collections are available
-    #
-    #     # Validate input dictionary
-    #     valid = validate_process_graph(load(open(os.path.join(PG_FOLDER, "s2_max_ndvi.json"))),
-    #                                    processes_src=LOCAL_PROCESSES_FOLDER,
-    #                                    collections_src=collections_url)
-    #     assert not valid  # not valid because not all processes and collections are available
+
+    def test_validate_process_graph_local(self):
+        """ Validate a process graph using processes defined on a backend. """
+
+        warnings.filterwarnings("ignore")  # suppress warnings caused by validation
+
+        collections_url = "https://earthengine.openeo.org/v1.0/collections"
+
+        valid = validate_process_graph(self.max_ndvi_pg_filepath, collections_url)
+        assert not valid  # not valid because not all processes and collections are available
+
 
     def test_validate_process_graph_remote(self):
         """ Validate a process graph using remote specified processes and collections. """
