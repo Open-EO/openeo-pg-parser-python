@@ -407,7 +407,7 @@ def translate_process_graph(pg_filepath, process_defs=None, parameters=None):
         raise Exception(err_msg)
 
     # define source of process definitions
-    process_defs = os.path.join(os.path.dirname(__file__), "..", "..", "processes") \
+    process_defs = os.path.join(os.path.dirname(__file__), "processes") \
         if process_defs is None else process_defs
 
     # traverse process graph
