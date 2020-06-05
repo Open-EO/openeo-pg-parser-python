@@ -612,4 +612,7 @@ class OpenEONode(Node):
     def dimension(self):
         """ str : Returns the dimension over which is reduced if the process is a reducer. """
         if self.is_reducer:
-            return self.arguments['dimension']
+            if 'dimension' in self.arguments.keys():
+                return self.arguments['dimension']
+            else:
+                return self.parent_process.dimension
