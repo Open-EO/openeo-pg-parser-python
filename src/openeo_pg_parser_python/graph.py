@@ -518,7 +518,6 @@ class Graph(object):
         return self
 
 
-
 class OpenEONode(Node):
     """
     A node of an openEO process graph, containing information about its edges, an ID, a name, its arguments,
@@ -576,16 +575,37 @@ class OpenEONode(Node):
 
     @property
     def dependencies(self):
-        """ graph.Graph : Direct dependencies of this node. """
-        data_dependencies = list(self.ancestors(link="data").nodes)  # get input data nodes
-        callback_dependencies = [node for node in self.ancestors(link="callback").nodes
-                                 if node.is_result]  # get input callback node, where node is a result node
+        """
+        Dependencies of node are other nodes, which provide mandatory input data for the current node.
+        So before the process of the current node can be executed, all other dependency processes need to be completed
+        first. This includes data dependencies and embedded process graph dependencies (`self.result_process`).
 
-        return Graph.from_list(data_dependencies + callback_dependencies)
+        Returns
+        -------
+        graph.Graph :
+            Direct dependencies of this node as a sub-graph.
+
+        """
+        data_dependencies = list(self.ancestors(link="data").nodes)  # get input data nodes
+        result_dependency = self.result_process # get result process node
+
+        dependencies = data_dependencies if result_dependency is None else data_dependencies + [result_dependency]
+
+        return Graph.from_list(dependencies)
 
     @property
     def parent_process(self):
-        """ list of graph.Node : Returns the parent process node. """
+        """
+        Returns the parent process node. A parent process is defined to be the process in which the current node/process
+        is embedded in. So a parent process is always one level higher then the current node in a process graph
+        hierarchy/tree.
+
+        Returns
+        -------
+        graph.OpenEONode :
+            Parent process node or None, if there is no parent process.
+
+        """
         parents = self.descendants("callback")
         if len(parents) > 1:
             err_msg = "Only one parent process is allowed."
@@ -595,8 +615,38 @@ class OpenEONode(Node):
 
     @property
     def child_processes(self):
-        """ list of graph.Node : Returns the child process nodes. """
+        """
+        Returns all child processes as a sub-graph. A child process is defined to be the process, which gets called by
+        the current node/process. So a child process is always one level lower then the current node in a process graph
+        hierarchy/tree.
+
+        Returns
+        -------
+        list of graph.OpenEONode :
+            Child processes or an empty list, if there is no child process.
+
+        """
+
         return self.ancestors("callback")
+
+    @property
+    def result_process(self):
+        """
+        Returns the result process node of an embedded process graph. The result process node is always one level
+        lower then the current node in a process graph hierarchy/tree and is part of `self.child_processes`.
+
+        Returns
+        -------
+        graph.OpenEONode :
+            Result process node or None, if there is no child process.
+
+        """
+        result_process = None
+        for node in self.child_processes:
+            if node.is_result:
+                result_process = node
+
+        return result_process
 
     @property
     def description(self):
