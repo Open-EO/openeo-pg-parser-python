@@ -616,9 +616,9 @@ class OpenEONode(Node):
     @property
     def child_processes(self):
         """
-        Returns all child processes as a sub-graph. A child process is defined to be the process, which gets called by
-        the current node/process. So a child process is always one level lower then the current node in a process graph
-        hierarchy/tree.
+        Returns all process nodes of an embedded process graph as a sub-graph. A child process is defined to be a
+        process, which is part of an embedded process graph. So a child process is always one level lower then the
+        current node in a process graph hierarchy/tree. A child process can only have one parent node.
 
         Returns
         -------
