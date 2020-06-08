@@ -518,6 +518,7 @@ class Graph(object):
         return self
 
 
+
 class OpenEONode(Node):
     """
     A node of an openEO process graph, containing information about its edges, an ID, a name, its arguments,
@@ -572,6 +573,15 @@ class OpenEONode(Node):
             return args
         else:
             return None
+
+    @property
+    def dependencies(self):
+        """ graph.Graph : Direct dependencies of this node. """
+        data_dependencies = list(self.ancestors(link="data").nodes)  # get input data nodes
+        callback_dependencies = [node for node in self.ancestors(link="callback").nodes
+                                 if node.is_result]  # get input callback node, where node is a result node
+
+        return Graph.from_list(data_dependencies + callback_dependencies)
 
     @property
     def parent_process(self):
