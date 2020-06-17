@@ -1,13 +1,13 @@
 import os
 from json import load
 from collections import OrderedDict
-from openeo_pg_parser_python.graph import OpenEONode, Edge, Graph
-from openeo_pg_parser_python.utils import set_obj_elem_from_keys
-from openeo_pg_parser_python.utils import get_obj_elem_from_keys
-from openeo_pg_parser_python.utils import load_processes
-from openeo_pg_parser_python.utils import load_json_file
+from openeo_pg_parser.graph import OpenEONode, Edge, Graph
+from openeo_pg_parser.utils import set_obj_elem_from_keys
+from openeo_pg_parser.utils import get_obj_elem_from_keys
+from openeo_pg_parser.utils import load_processes
+from openeo_pg_parser.utils import load_json_file
 
-def walk_process_graph(process_graph, nodes, process_defs, node_ids=None, level=0, prev_level=0):
+def walk_process_graph(process_graph, nodes, process_defs, node_ids=None, level=0):
     """
     Recursively walks through an openEO process graph dictionary and transforms the dictionary into a list of graph
     nodes.
@@ -29,9 +29,6 @@ def walk_process_graph(process_graph, nodes, process_defs, node_ids=None, level=
     level : int, optional
         Current level/deepness in the dictionary (default is 0,
         only internally used in the recursive process, can be ignored).
-    prev_level : int, optional
-        Previous level/deepness in the dictionary (default is 0,
-        only internally used in the recursive process, can be ignored)).
 
     Returns
     -------
@@ -60,6 +57,8 @@ def walk_process_graph(process_graph, nodes, process_defs, node_ids=None, level=
                     edge_name = "callback"
                     edge = Edge(id=edge_id, name=edge_name, nodes=edge_nodes)
                     node.add_edge(edge)
+                    # overwrite depth using parent information
+                    node.depth = parent_node.depth + 1
 
                 nodes[node_id] = node
             else:
@@ -69,16 +68,14 @@ def walk_process_graph(process_graph, nodes, process_defs, node_ids=None, level=
                 node_ids = []
 
             node_ids.append(node_id)
-            prev_level = level
             level += 1
-            nodes, node_ids, level, prev_level = walk_process_graph(value, nodes, process_defs, node_ids=node_ids,
-                                                                    level=level, prev_level=prev_level)
+            nodes, node_ids, level = walk_process_graph(value, nodes, process_defs, node_ids=node_ids, level=level)
 
     level += -1
     if node_ids:
         node_ids = node_ids[:-1]
 
-    return nodes, node_ids, level, prev_level
+    return nodes, node_ids, level
 
 
 def walk_pg_arguments(process_graph, keys_lineage=None, key_lineage=None, level=0, prev_level=0):
@@ -412,7 +409,7 @@ def translate_process_graph(pg_filepath, process_defs=None, parameters=None):
 
     # traverse process graph
     nodes = OrderedDict()
-    nodes, _, _, _ = walk_process_graph(process_graph, nodes, process_defs)
+    nodes, _, _ = walk_process_graph(process_graph, nodes, process_defs)
 
     # create graph object
     process_graph = Graph(nodes)

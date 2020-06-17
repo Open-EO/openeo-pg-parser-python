@@ -1,8 +1,8 @@
 import os
 import warnings
-from openeo_pg_parser_python.translate import translate_process_graph
-from openeo_pg_parser_python.utils import load_processes
-from openeo_pg_parser_python.utils import load_collections
+from openeo_pg_parser.translate import translate_process_graph
+from openeo_pg_parser.utils import load_processes
+from openeo_pg_parser.utils import load_collections
 
 
 def validate_processes(process_graph, processes_src):

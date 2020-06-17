@@ -24,7 +24,7 @@ conda env create -f conda_environment.yml
 ### Install package in the conda environment
 
 ```
-source activate openeo-pg-parser-python
+source activate openeo-pg-parser
 python setup.py install
 ```
 
@@ -196,7 +196,7 @@ An exemplary process graph is stored in a file named *"process_graph_example.jso
 ```
 To translate the JSON file into a python object, use:
 ```python
-from openeo_pg_parser_python.translate import translate_process_graph
+from openeo_pg_parser.translate import translate_process_graph
 
 pg_filepath = "process_graph_example.json"
 process_graph = translate_process_graph(pg_filepath)

@@ -2,7 +2,7 @@ import os
 import unittest
 import warnings
 from json import load
-from openeo_pg_parser_python.validate import validate_process_graph
+from openeo_pg_parser.validate import validate_process_graph
 
 
 class ValidateTester(unittest.TestCase):

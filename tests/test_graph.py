@@ -1,6 +1,6 @@
 import os
 import unittest
-from openeo_pg_parser_python.translate import translate_process_graph
+from openeo_pg_parser.translate import translate_process_graph
 
 
 class GraphTester(unittest.TestCase):

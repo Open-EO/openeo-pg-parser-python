@@ -1,6 +1,6 @@
 import os
 from json import load
-from openeo_pg_parser_python.utils import load_processes
+from openeo_pg_parser.utils import load_processes
 
 
 class OpenEOProcess:
