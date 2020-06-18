@@ -524,9 +524,9 @@ class Graph(object):
 
         return self
 
-    def show(self, layout="kamada_kawai", margin=100, bbox=(0, 0, 600, 600), node_size=20):
+    def plot(self, layout="kamada_kawai", margin=100, bbox=(0, 0, 600, 600), node_size=20):
         """
-        Plots a graph.
+        Generates an igraph plot object.
 
         Parameters
         ----------
@@ -553,11 +553,17 @@ class Graph(object):
         node_size : int, optional
             Size of the node in px. Defaults to 20.
 
+        Returns
+        -------
+        igraph.drawing.Plot :
+            igraph plot.
+
         """
         ig_graph = self.to_igraph()
         ig_layout = ig_graph.layout(layout)
         ig_graph.vs["label"] = [self[node_id].name for node_id in ig_graph.vs["name"]]
-        ig_graph.es["label"] = ig_graph.es["name"]
+        if "name" in ig_graph.es.attribute_names():
+            ig_graph.es["label"] = ig_graph.es["name"]
         ig_graph.vs["label_dist"] = [1.5]
 
         max_depth = self.max_depth
@@ -566,7 +572,7 @@ class Graph(object):
             colours = [list(np.random.random(size=3)) for i in range(n_colours)]
             ig_graph.vs["color"] = [colours[self[node_id].depth] for node_id in ig_graph.vs["name"]]
 
-        ig.plot(ig_graph, layout=ig_layout, margin=margin, bbox=bbox, vertex_size=node_size)
+        return ig.plot(ig_graph, layout=ig_layout, margin=margin, bbox=bbox, vertex_size=node_size)
 
     def to_igraph(self):
         """
@@ -587,12 +593,20 @@ class Graph(object):
         for node in self.nodes:
             for edge in node.edges:
                 if edge not in edges:
-                    if edge.name == "callback" and not edge.nodes[0].is_result:  # ignore non-result, callback nodes
+                    # ignore nodes, which are not contained in the graph
+                    if edge.nodes[0].id not in self.ids or edge.nodes[1].id not in self.ids:
+                        continue
+                    # ignore non-result, callback nodes
+                    if edge.name == "callback" and not edge.nodes[0].is_result:
                         continue
                     edges.append(edge)
-        tuple_edges = [(edge.nodes[0].id, edge.nodes[1].id) for edge in edges]
-        ig_graph = ig.Graph.TupleList(tuple_edges, directed=True)
-        ig_graph.es["name"] = [edge.name for edge in edges]
+        if edges:
+            tuple_edges = [(edge.nodes[0].id, edge.nodes[1].id) for edge in edges]
+            ig_graph = ig.Graph.TupleList(tuple_edges, directed=True)
+            ig_graph.es["name"] = [edge.name for edge in edges]
+        else:
+            ig_graph = ig.Graph.DictList([{'name': node.id} for node in self.nodes], [])
+
         return ig_graph
 
 

@@ -1,8 +1,13 @@
 # openeo-pg-parser-python
 
-This package allows to parse an *openEO* process graph (JSON) to a traversable Python object (`graph`), describing process dependencies and contents.
+This package allows to parse an *openEO* process graph (JSON) and convert it to a traversable Python object (`graph`).
+The resulting directed `graph` object consists of nodes and edges and can help for instance to identify node relationships 
+or to sort a graph by a specific attribute. The nodes are instances of `OpenEONode`, which can be used to extract information from itself, e.g., if it is a reducer and if so what dimension is used for reduction, or the direct neighbours, i.e., parent and child processes.
+The nodes are connected via directed edges which represent the data flow (input and output) and can have two values: "data" or "callback". "data" specifies that the output of one node is the input for the second node.
+"callback" is a connection between two processes, whereas the parent process is the embedded process graph (because the data is passed to the process, which is embedding the current one, after processing is done). 
 
-
+Moreover, one can display a parsed process graph `process graph` in two ways. Once via `print(process graph)` to print the string representation of all the nodes in the graph and once via `process_graph.plot()`.
+The latter option uses the Python package *igraph* to plot the graph on a map.
 ## Installation
 
 ### Install miniconda and clone repository
@@ -33,8 +38,7 @@ Change 'install' with 'develop' if you plan to further develop the package.
 
 ## Example
 
-Here, we show how an *openEO* process graph can be translated into a `graph` object.
-An exemplary process graph is stored in a file named *"process_graph_example.json"* and is given below:
+As short example, we can translate the following process graph, which loads S-2 data and computes the maximum NDVI value over a specific time span.
 ```json
 {
   "process_graph":
@@ -194,275 +198,12 @@ An exemplary process graph is stored in a file named *"process_graph_example.jso
   }
 }
 ```
-To translate the JSON file into a python object, use:
-```python
-from openeo_pg_parser.translate import translate_process_graph
+After parsing this process graph we get the following graph structure:
 
-pg_filepath = "process_graph_example.json"
-process_graph = translate_process_graph(pg_filepath)
-```
-Note that there are additional parameters for `translate_process_graph`:
+<img align="center" src="examples/s2_max_ndvi_graph.png" height="300" width="300">
 
-* `process_defs`: This can be a list, dictionary, directory path or URL containing JSON file paths of process definitions.
-* `parameters`: A dictionary of globally defined parameters, which can be accessed via 'from_parameter' from the process graph.
+Please have a look at the Juypter Notebooks under "examples" for further details.
 
-If you print the `graph` you get the information contained in each node:
-```
-Node ID: apply_0
-Node Name: apply
-{'arguments': {'data': {'from_node': 'reduce_time_7'},
-               'process': {'from_node': 'linear_scale_range_1'}},
- 'description': 'Stretch range from -1 / 1 to 0 / 255 for PNG visualization.',
- 'process_id': 'apply'}
-
-Node ID: load_collection_2
-Node Name: load_collection
-{'arguments': {'bands': ['B4', 'B8'],
-               'id': 'COPERNICUS/S2',
-               'spatial_extent': {'coordinates': [[[7.246856689453125,
-                                                    47.167543112150554],
-                                                   [7.218189239501953,
-                                                    47.13520594493793],
-                                                   [7.23552703857422,
-                                                    47.11570074493338],
-                                                   [7.2803306579589835,
-                                                    47.11488300552253],
-                                                   [7.305736541748048,
-                                                    47.14793302647546],
-                                                   [7.279300689697265,
-                                                    47.16999386399103],
-                                                   [7.246856689453125,
-                                                    47.167543112150554]]],
-                                  'type': 'Polygon'},
-               'temporal_extent': ['2018-01-01T00:00:00Z',
-                                   '2018-01-31T23:59:59Z']},
- 'description': 'Loading the data; The order of the specified bands is '
-                'important for the following reduce operation.',
- 'process_id': 'load_collection'}
-
-Node ID: reduce_bands_3
-Node Name: reduce_bands
-{'arguments': {'data': {'from_node': 'load_collection_2'},
-               'dimension': 'bands',
-               'reducer': {'from_node': 'ndvi_6'}},
- 'description': 'Compute the NDVI: (NIR - RED) / (NIR + RED)',
- 'process_id': 'reduce_dimension'}
-
-Node ID: reduce_time_7
-Node Name: reduce_time
-{'arguments': {'data': {'from_node': 'reduce_bands_3'},
-               'dimension': 't',
-               'reducer': {'from_node': 'max_8'}},
- 'description': 'Compute a minimum time composite by reducing the temporal '
-                'dimension',
- 'process_id': 'reduce_dimension'}
-
-Node ID: save_9
-Node Name: save
-{'arguments': {'data': {'from_node': 'apply_0'}, 'format': 'PNG'},
- 'process_id': 'save_result',
- 'result': True}
-
-Node ID: linear_scale_range_1
-Node Name: linear_scale_range
-{'arguments': {'inputMax': 1,
-               'inputMin': -1,
-               'outputMax': 255,
-               'x': {'from_node': 'reduce_time_7'}},
- 'process_id': 'linear_scale_range',
- 'result': True}
-
-Node ID: red_4
-Node Name: red
-{'arguments': {'data': {'from_node': 'load_collection_2'}, 'label': 'B4'},
- 'process_id': 'array_element'}
-
-Node ID: nir_5
-Node Name: nir
-{'arguments': {'data': {'from_node': 'load_collection_2'}, 'label': 'B8'},
- 'process_id': 'array_element'}
-
-Node ID: ndvi_6
-Node Name: ndvi
-{'arguments': {'x': {'from_node': 'nir_5'}, 'y': {'from_node': 'red_4'}},
- 'process_id': 'normalized_difference',
- 'result': True}
-
-Node ID: max_8
-Node Name: max
-{'arguments': {'data': {'from_node': 'reduce_bands_3'}},
- 'process_id': 'max',
- 'result': True}
-```
-It also possible to sort the process graph by the dependency of each node
-with:
-```python
-sorted_process_graph = process_graph.sort(by='dependency')
-```
-```
-Node ID: load_collection_2
-Node Name: load_collection
-{'arguments': {'bands': ['B4', 'B8'],
-               'id': 'COPERNICUS/S2',
-               'spatial_extent': {'coordinates': [[[7.246856689453125,
-                                                    47.167543112150554],
-                                                   [7.218189239501953,
-                                                    47.13520594493793],
-                                                   [7.23552703857422,
-                                                    47.11570074493338],
-                                                   [7.2803306579589835,
-                                                    47.11488300552253],
-                                                   [7.305736541748048,
-                                                    47.14793302647546],
-                                                   [7.279300689697265,
-                                                    47.16999386399103],
-                                                   [7.246856689453125,
-                                                    47.167543112150554]]],
-                                  'type': 'Polygon'},
-               'temporal_extent': ['2018-01-01T00:00:00Z',
-                                   '2018-01-31T23:59:59Z']},
- 'description': 'Loading the data; The order of the specified bands is '
-                'important for the following reduce operation.',
- 'process_id': 'load_collection'}
-
-Node ID: nir_5
-Node Name: nir
-{'arguments': {'data': {'from_node': 'load_collection_2'}, 'label': 'B8'},
- 'process_id': 'array_element'}
-
-Node ID: red_4
-Node Name: red
-{'arguments': {'data': {'from_node': 'load_collection_2'}, 'label': 'B4'},
- 'process_id': 'array_element'}
-
-Node ID: ndvi_6
-Node Name: ndvi
-{'arguments': {'x': {'from_node': 'nir_5'}, 'y': {'from_node': 'red_4'}},
- 'process_id': 'normalized_difference',
- 'result': True}
-
-Node ID: reduce_bands_3
-Node Name: reduce_bands
-{'arguments': {'data': {'from_node': 'load_collection_2'},
-               'dimension': 'bands',
-               'reducer': {'from_node': 'ndvi_6'}},
- 'description': 'Compute the NDVI: (NIR - RED) / (NIR + RED)',
- 'process_id': 'reduce_dimension'}
-
-Node ID: max_8
-Node Name: max
-{'arguments': {'data': {'from_node': 'reduce_bands_3'}},
- 'process_id': 'max',
- 'result': True}
-
-Node ID: reduce_time_7
-Node Name: reduce_time
-{'arguments': {'data': {'from_node': 'reduce_bands_3'},
-               'dimension': 't',
-               'reducer': {'from_node': 'max_8'}},
- 'description': 'Compute a minimum time composite by reducing the temporal '
-                'dimension',
- 'process_id': 'reduce_dimension'}
-
-Node ID: linear_scale_range_1
-Node Name: linear_scale_range
-{'arguments': {'inputMax': 1,
-               'inputMin': -1,
-               'outputMax': 255,
-               'x': {'from_node': 'reduce_time_7'}},
- 'process_id': 'linear_scale_range',
- 'result': True}
-
-Node ID: apply_0
-Node Name: apply
-{'arguments': {'data': {'from_node': 'reduce_time_7'},
-               'process': {'from_node': 'linear_scale_range_1'}},
- 'description': 'Stretch range from -1 / 1 to 0 / 255 for PNG visualization.',
- 'process_id': 'apply'}
-
-Node ID: save_9
-Node Name: save
-{'arguments': {'data': {'from_node': 'apply_0'}, 'format': 'PNG'},
- 'process_id': 'save_result',
- 'result': True}
-```
-If you are interested in a specific node, you can use Python indexing:
-```python
-print(process_graph['reduce_time_7'])
-```
-which results in:
-```
-Node ID: reduce_time_7
-Node Name: reduce_time
-{'arguments': {'data': {'from_node': 'reduce_bands_3'},
-               'dimension': 't',
-               'reducer': {'from_node': 'max_8'}},
- 'description': 'Compute a minimum time composite by reducing the temporal '
-                'dimension',
- 'process_id': 'reduce_dimension'}
-```
-A node also offers access to its relatives. This can for instance be a
-sub-graph containing all node dependencies:
-```python
-print(process_graph['reduce_time_7'].dependencies)
-```
-```
-Node ID: reduce_bands_3
-Node Name: reduce_bands
-{'arguments': {'data': {'from_node': 'load_collection_2'},
-               'dimension': 'bands',
-               'reducer': {'from_node': 'ndvi_6'}},
- 'description': 'Compute the NDVI: (NIR - RED) / (NIR + RED)',
- 'process_id': 'reduce_dimension'}
-
-Node ID: max_8
-Node Name: max
-{'arguments': {'data': {'from_node': 'reduce_bands_3'}},
- 'process_id': 'max',
- 'result': True}
-```
-The dependencies reflect the processed data flow, which means that in
-the case above, the node 'reduce_time' has to wait until 'reduce_bands' and 'max' (embedded process graph) is complete.
-Moreover, one can access a parent process, where the current process_graph is embedded in:
-```python
-print(process_graph['max_8'].parent_process)
-```
-```
-Node ID: reduce_time_7
-Node Name: reduce_time
-{'arguments': {'data': {'from_node': 'reduce_bands_3'},
-               'dimension': 't',
-               'reducer': {'from_node': 'max_8'}},
- 'description': 'Compute a minimum time composite by reducing the temporal '
-                'dimension',
- 'process_id': 'reduce_dimension'}
-```
-or the child, embedded process graph:
-```python
-print(process_graph['reduce_time_7'].child_processes)
-```
-```
-Node ID: max_8
-Node Name: max
-{'arguments': {'data': {'from_node': 'reduce_bands_3'}},
- 'process_id': 'max',
- 'result': True}
-```
-
-Not only information on node connections within a graph can be retrieved, also specific node information, e.g. if a node is a reducer:
-```python
-process_graph['reduce_time_7'].is_reducer
-```
-```python
-True
-```
-and if so, the dimension over which the reduction takes place:
-```python
-process_graph['reduce_time_7'].dimension
-```
-```python
-'t'
-```
 ## Note
 
 This project has been set up using PyScaffold 3.1. For details and usage
