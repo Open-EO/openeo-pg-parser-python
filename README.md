@@ -200,7 +200,7 @@ As short example, we can translate the following process graph, which loads S-2 
 ```
 After parsing this process graph we get the following graph structure:
 
-<img align="center" src="examples/s2_max_ndvi_graph.png" height="300" width="300">
+<img align="center" src="examples/s2_max_ndvi_graph.png" height="400" width="400">
 
 Please have a look at the Juypter Notebooks under "examples" for further details.
 
