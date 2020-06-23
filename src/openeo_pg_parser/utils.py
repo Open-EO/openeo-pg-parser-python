@@ -133,29 +133,6 @@ def load_collections(src):
     return collections
 
 
-def keys2str(keys):
-    """
-    Converts list of keys to a string, which can be used for indexing (e.g., a dictionary).
-
-    Parameters
-    ----------
-    keys : list of str
-        List of keys.
-
-    Returns
-    -------
-    str
-        Indexing string.
-    """
-
-    key_str = ""
-    for key in keys:
-        if isinstance(key, str):
-            key = "'{}'".format(key)
-        key_str += "[{}]".format(key)
-
-    return key_str
-
 def get_obj_elem_from_keys(obj, keys):
     """
     Returns values stored in `obj` by using a list of keys for indexing.
@@ -173,8 +150,10 @@ def get_obj_elem_from_keys(obj, keys):
         Values of the indexed object.
     """
 
-    key_str = keys2str(keys)
-    return copy.deepcopy(eval('obj' + key_str))
+    if len(keys) > 1:
+        return get_obj_elem_from_keys(obj[keys[0]], keys[1:])
+    else:
+        return obj[keys[0]]
 
 
 def set_obj_elem_from_keys(obj, keys, value):
@@ -196,6 +175,7 @@ def set_obj_elem_from_keys(obj, keys, value):
         Reset object including the given `value`.
     """
 
-    key_str = keys2str(keys)
-    exec('obj{}={}'.format(key_str, value))
-    return obj
+    if len(keys) > 1:
+        return set_obj_elem_from_keys(obj[keys[0]], keys[1:], value)
+    else:
+        obj[keys[0]] = value

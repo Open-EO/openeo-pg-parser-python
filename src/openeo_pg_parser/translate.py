@@ -216,7 +216,7 @@ def adjust_from_nodes(process_graph):
                 continue
             node_other = pg_same_level.get_node_by_name(data_entry)
             if node_other:
-                set_obj_elem_from_keys(node.content['arguments'], key_lineage, "'{}'".format(node_other.id))
+                set_obj_elem_from_keys(node.content['arguments'], key_lineage, node_other.id)
                 edge_nodes = [node_other, node]
                 edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
                 edge_name = "data"

@@ -82,8 +82,7 @@ class OpenEOProcess:
     @property
     def description(self):
         """ str : Description of the process. """
-        return self.definition['description'] if self._has_description else None
-
+        return self.definition.get('description')
 
     @property
     def parameters(self):
@@ -105,42 +104,22 @@ class OpenEOProcess:
     @property
     def is_reducer(self):
         """ bool : Checks if the current process is a reducer or not. """
-        return self._has_categories and "reducer" in self.definition["categories"]
+        return self.definition.get("categories") is not None and "reducer" in self.definition["categories"]
 
     @property
     def returns(self):
         """ dict : Returns 'return' schema of the process. """
-        return self.definition['returns']
+        return self.definition.get('returns')
 
     @property
     def exceptions(self):
         """ dict : Returns 'exceptions' schema of the process. """
-        return self.definition['exceptions'] if self._has_exceptions else None
+        return self.definition.get('exceptions')
 
     @property
     def process_graph(self):
         """ dict : Returns 'process_graph' schema of the process. """
-        return self.definition['process_graph'] if self._has_process_graph else None
-
-    @property
-    def _has_description(self):
-        """ bool : Checks if the process has a description ('description'). """
-        return "description" in self.definition.keys()
-
-    @property
-    def _has_categories(self):
-        """ bool : Checks if the process has categories ('categories'). """
-        return "categories" in self.definition.keys()
-
-    @property
-    def _has_process_graph(self):
-        """ bool : Checks if the process has an alternative process graph ('process_graph'). """
-        return "process_graph" in self.definition.keys()
-
-    @property
-    def _has_exceptions(self):
-        """ bool : Checks if the process has exceptions ('exceptions'). """
-        return "exceptions" in self.definition.keys()
+        return self.definition.get('process_graph')
 
 
 class OpenEOParameter:
@@ -171,22 +150,13 @@ class OpenEOParameter:
     @property
     def is_optional(self):
         """ bool : Name of the parameter. """
-        return self.definition['optional'] if self._has_optional else False
+        is_optional = self.definition.get('optional')
+        return is_optional if is_optional is not None else False
 
     @property
     def default_value(self):
         """ object : Default value/s of the paramter. """
-        return self.definition['default'] if self._has_default else None
-
-    @property
-    def _has_default(self):
-        """ bool : Checks if 'default' argument is given. """
-        return 'default' in self.definition.keys()
-
-    @property
-    def _has_optional(self):
-        """ bool : Checks if default 'optional' argument is given. """
-        return 'optional' in self.definition.keys()
+        return self.definition.get('default')
 
     def __str__(self):
         """
