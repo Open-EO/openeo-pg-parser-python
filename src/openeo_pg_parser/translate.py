@@ -257,7 +257,7 @@ def adjust_from_parameters(process_graph, parameters=None):
         keys_lineage = find_node_inputs(node, "from_parameter")
         for key_lineage in keys_lineage:
             from_parameter_name = get_obj_elem_from_keys(node.content['arguments'], key_lineage)
-            parent_nodes = process_graph.lineage(node, link="callback", ancestors=False)  # get all higher level process-graphs, starting from the embedded one
+            parent_nodes = process_graph.lineage(node, link="callback", ancestors=False, include_node=False)  # get all higher level process-graphs, starting from the embedded one
             parameter_found = False
             for parent_node in parent_nodes:  # backtrace as long a parent process exists
                 process = parent_node.process

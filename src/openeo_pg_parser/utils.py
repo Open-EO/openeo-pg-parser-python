@@ -4,6 +4,7 @@ import copy
 import requests
 from json import load
 
+
 def url_is_valid(url):
     """
     Very simple check if URL exists/is valid or not.
@@ -26,6 +27,7 @@ def url_is_valid(url):
     except:
         return False
 
+
 def load_json_file(filepath):
     """
     Loads json file as dictionary.
@@ -42,6 +44,7 @@ def load_json_file(filepath):
     """
     with open(filepath) as file:
         return load(file)
+
 
 def load_processes(src):
     """

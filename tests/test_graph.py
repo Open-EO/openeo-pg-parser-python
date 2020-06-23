@@ -20,7 +20,7 @@ class GraphTester(unittest.TestCase):
                                    "linear_scale_range_1", "red_4", "nir_5", "ndvi_6", "max_8"]
 
         sorted_graph = graph.sort(by='dependency')
-        assert list(sorted_graph.ids) == ["load_collection_2", "nir_5", "red_4", "ndvi_6", "reduce_bands_3", "max_8",
+        assert list(sorted_graph.ids) == ["load_collection_2", "red_4", "nir_5", "ndvi_6", "reduce_bands_3", "max_8",
                                           "reduce_time_7",  "linear_scale_range_1", "apply_0", "save_9"]
 
     def test_get_parent_process(self):

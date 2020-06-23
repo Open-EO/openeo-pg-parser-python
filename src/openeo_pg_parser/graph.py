@@ -364,7 +364,7 @@ class Graph(object):
 
         return None
 
-    def lineage(self, node, link=None, ancestors=True):
+    def lineage(self, node, link=None, ancestors=True, include_node=True):
         """
         Finds all nodes following a specific lineage in the graph/family tree.
 
@@ -375,32 +375,27 @@ class Graph(object):
         ancestors : bool, optional
             If true, search is proceeded for all ancestors (default).
             If false, search is proceeded for all descendants.
+        include_node : bool, optional
+            If true, the given node is added to its lineage (default is True).
 
         Returns
         -------
         graph.Graph
         """
 
-        idx = 1
-        idx_other = 0
-        if not ancestors:
-            idx = 0
-            idx_other = 1
-
-        lineage_nodes = []
+        lineage_nodes = [node] if include_node else []
         current_nodes = [node]
         while True:
             other_nodes = []
             for node_current in current_nodes:
-                edges = [edge for edge in node_current.edges
-                         if (edge.name == link) and (edge.nodes[idx].id == node_current.id)]
-                other_nodes.extend([edge.nodes[idx_other] for edge in edges])
-            current_nodes = copy.deepcopy(other_nodes)
+                other_nodes.extend(list(node_current.relatives(link=link, ancestor=ancestors).nodes))
 
-            if not current_nodes:
+            if not other_nodes:
                 break
             else:
-                lineage_nodes.extend(current_nodes)
+                lineage_nodes.extend(other_nodes)
+
+            current_nodes = other_nodes
 
         return Graph.from_list(lineage_nodes)
 
@@ -487,19 +482,16 @@ class Graph(object):
             Sorted graph.
         """
 
-        nodes_ordered = []
         if by == "dependency":
-            for node in self.nodes:
-                insert_idx = 0
-                for node_dependency in node.dependencies:
-                    for idx, node_ordered in enumerate(nodes_ordered):
-                        if (idx >= insert_idx) and (node_dependency.id == node_ordered.id):
-                            insert_idx = idx + 1  # place the node after the dependency
-                nodes_ordered.insert(insert_idx, node)
+            # use igraph for topological sorting
+            ig = self.to_igraph()
+            node_order = ig.topological_sorting()
+            ordered_node_ids = np.array(ig.vs['name'])[node_order]
+            nodes_ordered = [self[ordered_node_id] for ordered_node_id in ordered_node_ids]
         elif by == "depth":
             depths = [node.depth for node in self.nodes]
-            order = np.argsort(depths)
-            nodes_ordered = np.array(list(self.nodes))[order].tolist()
+            node_order = np.argsort(depths)
+            nodes_ordered = np.array(list(self.nodes))[node_order].tolist()
         else:
             err_msg = "Sorting strategy '{}' unknown ".format(by)
             raise ValueError(err_msg)
