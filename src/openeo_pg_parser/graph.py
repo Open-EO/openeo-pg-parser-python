@@ -4,6 +4,7 @@ from pprint import pformat
 from collections import OrderedDict
 import igraph as ig
 from openeo_pg_parser.definitions import OpenEOProcess
+from openeo_pg_parser.definitions import OpenEOParameter
 
 
 class Node:
@@ -645,17 +646,29 @@ class OpenEONode(Node):
 
     @property
     def arguments(self):
-        """ dict : returns the arguments of an openEO process. """
+        """ dict : Returns the arguments of an openEO process. """
 
         if self.content is not None:
             exp_args = self.process.parameters
             args = copy.deepcopy(self.content['arguments'])
             for exp_arg_name in exp_args.keys():
                 if exp_arg_name not in args.keys():
-                    args[exp_arg_name] = exp_args[exp_arg_name]
+                    args[exp_arg_name] = exp_args[exp_arg_name].default_value
             return args
         else:
             return None
+
+    @property
+    def parameters(self):
+        """ dict : Returns parameter definitions defined at the same level as the node. """
+
+        parameters = []
+        for k, v in self.arguments.items():
+            if isinstance(v, dict) and 'parameters' in v.keys():
+                parameter_defs = self.content['arguments'][k]['parameters']
+                return [OpenEOParameter(parameter_def) for parameter_def in parameter_defs]
+
+        return parameters
 
     @property
     def dependencies(self):

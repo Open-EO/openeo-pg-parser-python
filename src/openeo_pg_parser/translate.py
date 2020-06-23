@@ -6,6 +6,8 @@ from openeo_pg_parser.utils import set_obj_elem_from_keys
 from openeo_pg_parser.utils import get_obj_elem_from_keys
 from openeo_pg_parser.utils import load_processes
 from openeo_pg_parser.utils import load_json_file
+from openeo_pg_parser.definitions import OpenEOParameter
+
 
 def walk_process_graph(process_graph, nodes, process_defs, node_ids=None, level=0):
     """
@@ -265,12 +267,20 @@ def adjust_from_parameters(process_graph, parameters=None):
                 if process.sub_process is not None:
                     if from_parameter_name in process.sub_process.parameters.keys():
                         parameter_found = True
+
                 # Second, check if parameter is contained in process
                 if not parameter_found:
                     if from_parameter_name in process.parameters.keys():
                         parameter_found = True
 
-                if parameter_found:
+                # Third, check if parameter is contained in parameter definition at the same level
+                if not parameter_found:
+                    for parameter in parent_node.parameters:
+                        if from_parameter_name == parameter.name:
+                            parameter_found = True
+                            set_obj_elem_from_keys(node.content['arguments'], key_lineage[:-1], parameter.default_value)
+                            break
+                else:
                     node_relatives = parent_node.relatives(link="data", ancestor=True)  # TODO: check if "data" always suffices
                     node_arguments = []
                     for node_relative in node_relatives:
@@ -344,7 +354,6 @@ def link_nodes(process_graph, parameters=None):
 
     """
 
-
     # fill in all from_node parameters and create edges
     process_graph = adjust_from_nodes(process_graph)
 
@@ -396,6 +405,12 @@ def translate_process_graph(pg_filepath, process_defs=None, parameters=None):
         raise ValueError("'pg_filepath must either be file path to a JSON file or a dictionary.'")
 
     # remove first layer of the process graph
+    parameters = {} if parameters is None else parameters
+    if "parameters" in process_graph.keys():
+        for parameter_def in process_graph['parameters']:
+            parameter = OpenEOParameter(parameter_def)
+            parameters.update({parameter.name: parameter.default_value})
+
     if "process_graph" in process_graph.keys():
         process_graph = process_graph['process_graph']
     else:
@@ -418,6 +433,7 @@ def translate_process_graph(pg_filepath, process_defs=None, parameters=None):
     process_graph = link_nodes(process_graph, parameters=parameters)
 
     return process_graph
+
 
 if __name__ == '__main__':
     pass

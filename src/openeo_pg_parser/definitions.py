@@ -155,7 +155,7 @@ class OpenEOParameter:
 
     @property
     def default_value(self):
-        """ object : Default value/s of the paramter. """
+        """ object : Default value/s of the parameter. """
         return self.definition.get('default')
 
     def __str__(self):
