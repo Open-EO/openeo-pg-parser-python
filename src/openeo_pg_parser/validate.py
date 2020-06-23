@@ -29,23 +29,22 @@ def validate_processes(process_graph, processes_src):
 
     process_defs = load_processes(processes_src)
 
-    valid = True
+    err_msgs = []
     for node in process_graph.nodes:
         if node.process_id not in process_defs.keys():
-            valid = False
-            wrn_msg = "'{}' is not in the current set of process definitions.".format(node.process_id)
-            warnings.warn(wrn_msg)
+            err_msg = "'{}' is not in the current set of process definitions.".format(node.process_id)
+            err_msgs.append(err_msg)
         else:
             # First, check if required parameter is set in the process graph
             for parameter in node.process.parameters.values():
                 if not parameter.is_optional:
                     if parameter.name not in node.arguments.keys():
-                        valid = False
-                        wrn_msg = "Parameter '{}' is required for process '{}'".format(parameter.name,
+                        err_msg = "Parameter '{}' is required for process '{}'".format(parameter.name,
                                                                                        node.process_id)
-                        warnings.warn(wrn_msg)
+                        err_msgs.append(err_msg)
 
-    return valid
+    return err_msgs, len(err_msgs) == 0
+
 
 def validate_collections(process_graph, collections_src):
     """
@@ -68,15 +67,14 @@ def validate_collections(process_graph, collections_src):
         If True, the given process graph is valid with respect to the given process definitions.
     """
 
-    collection_defs  = load_collections(collections_src)
+    collection_defs = load_collections(collections_src)
 
-    valid = True
+    err_msgs = []
     for node in process_graph.nodes:
         if node.process_id == 'load_collection':
             if node.arguments['id'] not in collection_defs.keys():
-                valid = False
-                wrn_msg = "'{}' is not in the current set of collections.".format(node.arguments['id'])
-                warnings.warn(wrn_msg)
+                err_msg = "'{}' is not in the current set of collections.".format(node.arguments['id'])
+                err_msgs.append(err_msg)
             else:
                 collection = collection_defs[node.arguments['id']]
                 # check bands
@@ -86,16 +84,16 @@ def validate_collections(process_graph, collections_src):
                                        if 'name' in band_properties]
                     for node_band in node_bands:
                         if node_band not in available_bands:
-                            valid = False
                             available_bands_str = ', '.join(["'{}'".format(available_band)
                                                              for available_band in available_bands])
-                            wrn_msg = "'{}' is not a valid band name for collection '{}' " \
+                            err_msg = "'{}' is not a valid band name for collection '{}' " \
                                       "with the following bands: {}.".format(node_band,
                                                                              collection['id'],
                                                                              available_bands_str)
-                            warnings.warn(wrn_msg)
+                            err_msgs.append(err_msg)
 
-    return valid
+    return err_msgs, len(err_msgs) == 0
+
 
 def validate_process_graph(pg_filepath, collections_src, processes_src=None, parameters=None):
     """
@@ -133,12 +131,14 @@ def validate_process_graph(pg_filepath, collections_src, processes_src=None, par
 
     process_graph = translate_process_graph(pg_filepath, process_defs=process_defs, parameters=parameters)
 
-    processes_valid = validate_processes(process_graph, process_defs)
-    collections_valid = validate_collections(process_graph, collections_src)
+    proc_err_msgs, proc_valid = validate_processes(process_graph, process_defs)
+    coll_err_msgs, coll_valid = validate_collections(process_graph, collections_src)
 
-    process_graph_valid = processes_valid & collections_valid
+    pg_err_msgs = proc_err_msgs + coll_err_msgs
+    pg_valid = proc_valid & coll_valid
 
-    return process_graph_valid
+    return pg_err_msgs, pg_valid
+
 
 if __name__ == '__main__':
     pass

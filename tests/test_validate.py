@@ -1,7 +1,6 @@
 import os
 import unittest
 import warnings
-from json import load
 from openeo_pg_parser.validate import validate_process_graph
 
 
@@ -14,33 +13,31 @@ class ValidateTester(unittest.TestCase):
         self.wrong_band_filepath = os.path.join(pg_dirpath, "test_s2_wrong_band.json")
         self.max_ndvi_pg_filepath = os.path.join(pg_dirpath, "s2_max_ndvi.json")
 
-
     def test_validate_process_graph_local(self):
         """ Validate a process graph using processes defined on a backend. """
 
         collections_url = "https://earthengine.openeo.org/v1.0/collections"
 
-        valid = validate_process_graph(self.max_ndvi_pg_filepath, collections_url)
+        _, valid = validate_process_graph(self.max_ndvi_pg_filepath, collections_url)
         assert valid
-
 
     def test_validate_process_graph_remote(self):
         """ Validate a process graph using remote specified processes and collections. """
 
-        valid = validate_process_graph(self.max_ndvi_pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
-                                       processes_src="https://earthengine.openeo.org/v1.0/processes")
+        _, valid = validate_process_graph(self.max_ndvi_pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
+                                          processes_src="https://earthengine.openeo.org/v1.0/processes")
         assert valid
-
 
     def test_validate_wrong_band(self):
         """ Validate a process graph using remote specified processes and collections. """
 
         warnings.filterwarnings("ignore")  # suppress warnings caused by validation
 
-        valid = validate_process_graph(self.wrong_band_filepath, "https://earthengine.openeo.org/v1.0/collections",
-                                       processes_src="https://earthengine.openeo.org/v1.0/processes")
+        _, valid = validate_process_graph(self.wrong_band_filepath, "https://earthengine.openeo.org/v1.0/collections",
+                                          processes_src="https://earthengine.openeo.org/v1.0/processes")
 
         assert valid  # TODO: should be not valid: no band information at the GEE backend?
+
 
 if __name__ == '__main__':
     unittest.main()
