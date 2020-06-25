@@ -1,6 +1,0 @@
-name: openeo-pg-parser-python
-channels:
-- defaults
-dependencies:
-- python=3.6
-- requests

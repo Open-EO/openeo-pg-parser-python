@@ -5,30 +5,32 @@ This package allows to parse an *openEO* process graph (JSON) to a traversable P
 
 ## Installation
 
-### Install miniconda and clone repository
 
-```
-wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-bash miniconda.sh -b -p $HOME/miniconda
-export PATH="$HOME/miniconda/bin:$PATH"
-git clone https://github.com/Open-EO/openeo-pg-parser-python.git
-cd openeo-pg-parser-python
- ```
+1.  At the moment, this package is only installable from source.
+    So start with cloning the repository:
 
-### Create the conda environment
+        git clone https://github.com/Open-EO/openeo-pg-parser-python.git
+        cd openeo-pg-parser-python
 
-```
-conda env create -f conda_environment.yml
-```
+2.  It is recommended to install this package in a virtual environment,
+    e.g. by using [`venv` (from the Python standard library)](https://docs.python.org/3/library/venv.html),
+    `virtualenv`, a conda environment, ... For example, to create a new virtual
+    environment using `venv` (in a folder called `.venv`) and to activate it:
 
-### Install package in the conda environment
+        python3 -m venv .venv
+        source .venv/bin/activate
 
-```
-source activate openeo-pg-parser-python
-python setup.py install
-```
+    (You might want to use a different bootstrap python executable
+    instead of `python3` in this example.)
 
-Change 'install' with 'develop' if you plan to further develop the package.
+3. Install the package in the virtual environment using one of the following ways, as you prefer:
+
+    - traditional way: `python setup.py install`
+    - with pip: `pip install .`
+    - if you plan to do development on the `openeo-pg-parser-python` package itself,
+        install it in "development" mode with `python setup.py develop` or `pip install -e .`
+
+    (Note that in this step we are using `python` and `pip` from the virtual environment.)
 
 
 ## Example
