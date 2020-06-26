@@ -1,8 +1,0 @@
-name: openeo-pg-parser
-channels:
-- defaults
-dependencies:
-- python=3.6
-- requests
-- numpy
-- python-igraph
