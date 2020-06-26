@@ -74,7 +74,12 @@ def load_processes(src):
         elif isinstance(src, str) and url_is_valid(src):
             r = requests.get(url=src)
             data = r.json()
-            process_list = data['processes']
+            process_overview_list = data['processes']
+            process_list = []
+            for process in process_overview_list:
+                process_url = src + "/" + process['id']
+                r = requests.get(url=process_url)
+                process_list.append(r.json())
         elif isinstance(src, list):
             process_list = src
         else:
@@ -90,7 +95,7 @@ def load_processes(src):
 
 def load_collections(src):
     """
-    Collects collection definitions from a local process directory, from a URL or a list of collection
+    Collects collection definitions from a local collections directory, from a URL or a list of collection
     definitions.
 
     Parameters
@@ -118,7 +123,12 @@ def load_collections(src):
         elif isinstance(src, str) and url_is_valid(src):
             r = requests.get(url=src)
             data = r.json()
-            collection_list = data['collections']
+            collection_overview_list = data['collections']
+            collection_list = []
+            for collection in collection_overview_list:
+                collection_url = src + "/" + collection['id']
+                r = requests.get(url=collection_url)
+                collection_list.append(r.json())
         elif isinstance(src, list):
             collection_list = src
         else:

@@ -37,7 +37,7 @@ def validate_processes(process_graph, processes_src):
         else:
             # First, check if required parameter is set in the process graph
             for parameter in node.process.parameters.values():
-                if not parameter.is_optional:
+                if not parameter.is_required:
                     if parameter.name not in node.arguments.keys():
                         err_msg = "Parameter '{}' is required for process '{}'".format(parameter.name,
                                                                                        node.process_id)
@@ -77,11 +77,15 @@ def validate_collections(process_graph, collections_src):
                 err_msgs.append(err_msg)
             else:
                 collection = collection_defs[node.arguments['id']]
+                collection_dims = collection['cube:dimensions']
+                available_bands = []
+                for _, collection_dim in collection_dims.items():
+                    if collection_dim['type'] == 'bands':
+                        available_bands.extend([band.lower() for band in collection_dim['values']])
+
                 # check bands
-                if 'bands' in node.arguments.keys() and 'bands' in collection:
+                if 'bands' in node.arguments.keys() and available_bands:
                     node_bands = [band.lower() for band in node.arguments['bands']]
-                    available_bands = [band_properties['name'].lower() for band_properties in collection['bands']
-                                       if 'name' in band_properties]
                     for node_band in node_bands:
                         if node_band not in available_bands:
                             available_bands_str = ', '.join(["'{}'".format(available_band)

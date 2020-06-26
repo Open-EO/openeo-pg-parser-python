@@ -1,6 +1,5 @@
 import os
 import unittest
-import warnings
 from openeo_pg_parser.validate import validate_process_graph
 
 
@@ -23,20 +22,18 @@ class ValidateTester(unittest.TestCase):
 
     def test_validate_process_graph_remote(self):
         """ Validate a process graph using remote specified processes and collections. """
-
+        # TODO: vito processes are taken at the moment for validation, change this in the future to GEE
         _, valid = validate_process_graph(self.max_ndvi_pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
-                                          processes_src="https://earthengine.openeo.org/v1.0/processes")
+                                          processes_src="https://openeo.vito.be/openeo/1.0/processes")
         assert valid
 
     def test_validate_wrong_band(self):
         """ Validate a process graph using remote specified processes and collections. """
-
-        warnings.filterwarnings("ignore")  # suppress warnings caused by validation
-
+        # TODO: vito processes are taken at the moment for validation, change this in the future to GEE
         _, valid = validate_process_graph(self.wrong_band_filepath, "https://earthengine.openeo.org/v1.0/collections",
-                                          processes_src="https://earthengine.openeo.org/v1.0/processes")
+                                          processes_src="https://openeo.vito.be/openeo/1.0/processes")
 
-        assert valid  # TODO: should be not valid: no band information at the GEE backend?
+        assert not valid
 
 
 if __name__ == '__main__':
