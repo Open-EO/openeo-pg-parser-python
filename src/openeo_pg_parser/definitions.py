@@ -1,6 +1,8 @@
 import os
 from json import load
 from openeo_pg_parser.utils import load_processes
+from openeo_pg_parser.utils import get_obj_elem_from_keys
+from openeo_pg_parser.utils import walk_process_dictionary
 
 
 class OpenEOProcess:
@@ -16,7 +18,6 @@ class OpenEOProcess:
 
         """
         self.definition = process_def
-        self.sub_process = None
 
     @classmethod
     def from_file(cls, filepath):
@@ -96,10 +97,33 @@ class OpenEOProcess:
             parameter = OpenEOParameter(param_def)
             parameters[parameter.name] = parameter
 
-            if "parameters" in parameter.schema:  # check if this condition fulfills all needs
-                self.sub_process = OpenEOProcess(parameter.schema)
-
         return parameters
+
+    @property
+    def sub_parameters(self):
+        """
+        dict : Dictionary containing the process argument names as keys and parameter definitions
+        (`OpenEOParameter` instances) as values for sub-processes.
+
+        """
+        sub_parameters = {}
+        for param_def in self.definition['parameters']:
+            parameter = OpenEOParameter(param_def)
+            keys_lineage, _, _, _ = walk_process_dictionary(parameter.schema)
+            keys_done = []
+            for key_lineage in keys_lineage:
+                if 'parameters' not in key_lineage:  # continue if 'parameter' is not in the list of keys
+                    continue
+                keys = key_lineage[:key_lineage.index('parameters')+1]
+                if keys in keys_done:  # continue if the keys were already used
+                    continue
+                keys_done.append(keys)
+                sub_param_defs = get_obj_elem_from_keys(parameter.schema, keys)
+                for sub_param_def in sub_param_defs:
+                    sub_parameter = OpenEOParameter(sub_param_def)
+                    sub_parameters.update({sub_parameter.name: sub_parameter})
+
+        return sub_parameters
 
     @property
     def is_reducer(self):
@@ -149,9 +173,15 @@ class OpenEOParameter:
 
     @property
     def is_optional(self):
-        """ bool : Name of the parameter. """
+        """ bool : Returns True if the parameter is optional. """
         is_optional = self.definition.get('optional')
         return is_optional if is_optional is not None else False
+
+    @property
+    def is_required(self):
+        """ bool : Returns True if the parameter is required. """
+        is_required = self.definition.get('required')
+        return is_required if is_required is not None else not self.is_optional
 
     @property
     def default_value(self):

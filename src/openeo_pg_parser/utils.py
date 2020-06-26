@@ -1,6 +1,5 @@
 import os
 import glob
-import copy
 import requests
 from json import load
 
@@ -133,6 +132,76 @@ def load_collections(src):
     return collections
 
 
+def walk_process_dictionary(proc_dict, keys_lineage=None, key_lineage=None, level=0, prev_level=0,
+                            break_points=None):
+    """
+    Recursively walks through a dictionary until the specified key is reached and collects the keys lineage/the keys.
+
+    Parameters
+    ----------
+    proc_dict : dict
+        Dictionary to walk through.
+    keys_lineage : list of lists, optional
+        List of key lineages. (only internally used in the recursive process, can be ignored).
+    key_lineage: list of str, optional
+        Keys necessary to get the name of the input process id (only internally used in the recursive process,
+        can be ignored)
+    level : int, optional
+        Current level/deepness in the dictionary (default is 0,
+        only internally used in the recursive process, can be ignored).
+    prev_level : int, optional
+        Previous level/deepness in the dictionary (default is 0,
+        only internally used in the recursive process, can be ignored)).
+    break_points : list, optional
+        List of strings/keys in the dictionary, where the recursive process should stop.
+
+    Returns
+    -------
+    keys_lineage : list of lists
+    key_lineage : list of str
+    level : int
+    prev_level : int
+
+    """
+
+    if key_lineage is None:
+        key_lineage = []
+
+    if keys_lineage is None:
+        keys_lineage = []
+
+    if isinstance(proc_dict, dict):
+        for k, v in proc_dict.items():
+            if break_points and k in break_points:  # ignore further arguments
+                break
+            key_lineage.append(k)
+            sub_pg_graph = proc_dict[k]
+            level += 1
+            prev_level = level
+            keys_lineage, key_lineage, level, prev_level = walk_process_dictionary(sub_pg_graph, keys_lineage=keys_lineage,
+                                                                                   key_lineage=key_lineage, level=level,
+                                                                                   prev_level=prev_level,
+                                                                                   break_points=break_points)
+    elif isinstance(proc_dict, list):
+        for i, elem in enumerate(proc_dict):
+            key_lineage.append(i)
+            sub_pg_graph = proc_dict[i]
+            level += 1
+            prev_level = level
+            keys_lineage, key_lineage, level, prev_level = walk_process_dictionary(sub_pg_graph, keys_lineage=keys_lineage,
+                                                                                   key_lineage=key_lineage, level=level,
+                                                                                   prev_level=prev_level,
+                                                                                   break_points=break_points)
+
+    level -= 1
+    if key_lineage and (key_lineage not in keys_lineage):
+        if (level - prev_level) == -1:
+            keys_lineage.append(key_lineage)
+        key_lineage = key_lineage[:-1]
+
+    return keys_lineage, key_lineage, level, prev_level
+
+
 def get_obj_elem_from_keys(obj, keys):
     """
     Returns values stored in `obj` by using a list of keys for indexing.
@@ -179,3 +248,4 @@ def set_obj_elem_from_keys(obj, keys, value):
         return set_obj_elem_from_keys(obj[keys[0]], keys[1:], value)
     else:
         obj[keys[0]] = value
+

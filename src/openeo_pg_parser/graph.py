@@ -610,7 +610,8 @@ class OpenEONode(Node):
 
     """
 
-    def __init__(self, id=None, name=None, content=None, edges=None, depth=None, processes_src=None):
+    def __init__(self, id=None, name=None, content=None, edges=None, depth=None, processes_src=None,
+                 keys=None):
         """
         Constructor of `graph.Node`.
 
@@ -633,11 +634,14 @@ class OpenEONode(Node):
                 - directory path to processes (.json)
                 - URL of the remote process endpoint (e.g., "https://earthengine.openeo.org/v1.0/processes")
                 - list of loaded process definitions
+        keys : list of str, optional
+            List of process graph dictionary keys pointing to the node.
 
         """
         super().__init__(id=id, name=name, content=content, edges=edges, depth=depth)
 
         self.process = OpenEOProcess.from_name(self.process_id, src=processes_src)
+        self.keys = keys
 
     @property
     def process_id(self):

@@ -12,7 +12,6 @@ class TranslateTester(unittest.TestCase):
         self.uc1_polarization_pg_filepath = os.path.join(self.pg_dirpath, "s1_uc1_polarization.json")
         self.non_existing_filepath = os.path.join(self.pg_dirpath, "does_not_exist.json")
 
-
     def test_translate_process_graph(self):
         """ Translates a process graph from openEO syntax to a Python traversable object. """
 
