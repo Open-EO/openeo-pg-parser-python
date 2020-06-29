@@ -63,6 +63,10 @@ def load_processes(src):
     dict :
         Dictionary linking process IDs with the respective process definitions.
 
+    Notes
+    -----
+    When an URL is given, this function downloads the process specifications from the overview endpoint.
+
     """
 
     if isinstance(src, dict):
@@ -74,12 +78,7 @@ def load_processes(src):
         elif isinstance(src, str) and url_is_valid(src):
             r = requests.get(url=src)
             data = r.json()
-            process_overview_list = data['processes']
-            process_list = []
-            for process in process_overview_list:
-                process_url = src + "/" + process['id']
-                r = requests.get(url=process_url)
-                process_list.append(r.json())
+            process_list = data['processes']
         elif isinstance(src, list):
             process_list = src
         else:
@@ -93,7 +92,7 @@ def load_processes(src):
     return processes
 
 
-def load_collections(src):
+def load_collections(src, collection_ids=None):
     """
     Collects collection definitions from a local collections directory, from a URL or a list of collection
     definitions.
@@ -101,16 +100,23 @@ def load_collections(src):
     Parameters
     ----------
     src : dict or str or list, optional
-            It can be:
-                - dictionary of loaded collection definitions (keys are the collection ID's)
-                - directory path to collections (.json)
-                - URL of the remote collection endpoint (e.g., "https://earthengine.openeo.org/v1.0/collections")
-                - list of loaded collection definitions
+        It can be:
+            - dictionary of loaded collection definitions (keys are the collection ID's)
+            - directory path to collections (.json)
+            - URL of the remote collection endpoint (e.g., "https://earthengine.openeo.org/v1.0/collections")
+            - list of loaded collection definitions
+    collection_ids : list of str, optional
+        List of collection ID's used when an URL is given as a source.
 
     Returns
     -------
     dict :
         Dictionary linking collection IDs with the respective collection definitions.
+
+    Notes
+    -----
+    When an URL is given, this function downloads the collections from each exact collection endpoint.
+    Note that downloading all collections can take quite some time.
 
     """
 
@@ -121,12 +127,13 @@ def load_collections(src):
             filepaths = glob.glob(os.path.join(src, "*.json"))
             collection_list = [load_json_file(filepath) for filepath in filepaths]
         elif isinstance(src, str) and url_is_valid(src):
-            r = requests.get(url=src)
-            data = r.json()
-            collection_overview_list = data['collections']
+            if not collection_ids:
+                r = requests.get(url=src)
+                data = r.json()
+                collection_ids = [collection['id'] for collection in data['collections']]
             collection_list = []
-            for collection in collection_overview_list:
-                collection_url = src + "/" + collection['id']
+            for collection_id in collection_ids:
+                collection_url = src + "/" + collection_id
                 r = requests.get(url=collection_url)
                 collection_list.append(r.json())
         elif isinstance(src, list):

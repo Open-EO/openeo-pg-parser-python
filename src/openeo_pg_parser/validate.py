@@ -67,16 +67,16 @@ def validate_collections(process_graph, collections_src):
         If True, the given process graph is valid with respect to the given process definitions.
     """
 
-    collection_defs = load_collections(collections_src)
-
     err_msgs = []
     for node in process_graph.nodes:
         if node.process_id == 'load_collection':
+            collection_id = node.arguments['id']
+            collection_defs = load_collections(collections_src, collection_ids=[collection_id])
             if node.arguments['id'] not in collection_defs.keys():
-                err_msg = "'{}' is not in the current set of collections.".format(node.arguments['id'])
+                err_msg = "'{}' is not in the current set of collections.".format(collection_id)
                 err_msgs.append(err_msg)
             else:
-                collection = collection_defs[node.arguments['id']]
+                collection = collection_defs[collection_id]
                 collection_dims = collection['cube:dimensions']
                 available_bands = []
                 for _, collection_dim in collection_dims.items():
@@ -92,7 +92,7 @@ def validate_collections(process_graph, collections_src):
                                                              for available_band in available_bands])
                             err_msg = "'{}' is not a valid band name for collection '{}' " \
                                       "with the following bands: {}.".format(node_band,
-                                                                             collection['id'],
+                                                                             collection_id,
                                                                              available_bands_str)
                             err_msgs.append(err_msg)
 
