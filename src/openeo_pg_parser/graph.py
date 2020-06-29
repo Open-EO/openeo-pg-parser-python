@@ -204,10 +204,10 @@ class Node:
         return self.id == other.id
 
 
-class Edge(object):
+class Edge:
     """ An edge connects two nodes. The connection has a label/name. """
 
-    def __init__(self, id=None, name=None, nodes=None):
+    def __init__(self, id=None, name=None, nodes=None, hidden=False):
         """
         Constructor of `graph.Edge`.
 
@@ -219,6 +219,8 @@ class Edge(object):
             Name of the edge/connection.
         nodes : list of graph.Nodes, optional
             List containing two nodes comprising an edge.
+        hidden : bool, optional
+            True if edge should be ignored, e.g. for sorting (defaults to False).
         """
 
         if nodes is not None:
@@ -230,6 +232,7 @@ class Edge(object):
         self.id = id
         self.name = name
         self.nodes = nodes
+        self.hidden = hidden
 
     @property
     def node_ids(self):
@@ -256,7 +259,7 @@ class Edge(object):
                (self.name == other.name)
 
 
-class Graph(object):
+class Graph:
     """ Represents an arbitrary graph containing `graph.Node` instances as nodes. """
 
     def __init__(self, nodes):
@@ -585,7 +588,7 @@ class Graph(object):
         edges = []
         for node in self.nodes:
             for edge in node.edges:
-                if edge not in edges:
+                if not edge.hidden and edge not in edges:
                     # ignore nodes, which are not contained in the graph
                     if edge.nodes[0].id not in self.ids or edge.nodes[1].id not in self.ids:
                         continue

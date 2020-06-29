@@ -146,7 +146,7 @@ def adjust_from_nodes(process_graph):
     return process_graph
 
 
-def create_edge(node_from, node_to, name="data"):
+def create_edge(node_from, node_to, name="data", hidden=False):
     """
     Creates a directed edge of type `graph.Edge` between the nodes `node_from` and `node_to`.
 
@@ -158,6 +158,8 @@ def create_edge(node_from, node_to, name="data"):
         End node of the edge.
     name : str, optional
         Name of the edge (default is "data")
+    hidden : bool, optional
+            True if edge should be ignored, e.g. for sorting (defaults to False).
 
     Returns
     -------
@@ -167,7 +169,7 @@ def create_edge(node_from, node_to, name="data"):
     """
     edge_nodes = [node_from, node_to]
     edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
-    edge = Edge(id=edge_id, name=name, nodes=edge_nodes)
+    edge = Edge(id=edge_id, name=name, nodes=edge_nodes, hidden=hidden)
     node_to.add_edge(edge)
     node_from.add_edge(edge)
 
@@ -212,7 +214,7 @@ def adjust_from_parameters(process_graph, parameters=None):
                     node_relatives = parent_node.relatives(link="data", ancestor=True)
                     # parameter is required, but the start node has no input data -> take parent node as data reference
                     if parameter.is_required and not node_relatives:
-                        create_edge(parent_node, node)
+                        create_edge(parent_node, node, hidden=True)
                         node_argument = {'from_node': '{}'.format(parent_node.id)}
                         set_obj_elem_from_keys(node.content['arguments'], key_lineage[:-1], node_argument)
                     # parameter is required and parent node has input data -> add all data relatives of parent node later
