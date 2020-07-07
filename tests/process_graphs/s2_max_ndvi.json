@@ -1,5 +1,6 @@
 {
-  "process_graph": {
+  "process_graph":
+  {
     "apply": {
       "process_id": "apply",
       "arguments": {
@@ -70,7 +71,7 @@
         ],
         "bands": [
           "B4",
-          "B200"
+          "B8"
         ]
       },
       "description": "Loading the data; The order of the specified bands is important for the following reduce operation."

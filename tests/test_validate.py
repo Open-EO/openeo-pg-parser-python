@@ -1,51 +1,40 @@
 import os
 import unittest
-import warnings
-from json import load
-from openeo_pg_parser_python.validate import validate_process_graph
-
-from tests import PG_FOLDER, LOCAL_PROCESSES_FOLDER
+from openeo_pg_parser.validate import validate_process_graph
 
 
-def test_validate_process_graph_local():
-    """ Validate a process graph using processes defined on a backend. """
+class ValidateTester(unittest.TestCase):
+    """  Testing the module `validate` for different process graph translations and validations. """
 
-    warnings.filterwarnings("ignore")  # suppress warnings caused by validation
+    def setUp(self):
+        """ Setting up variables for one test. """
+        pg_dirpath = os.path.join(os.path.dirname(__file__), 'process_graphs')
+        self.wrong_band_filepath = os.path.join(pg_dirpath, "test_s2_wrong_band.json")
+        self.max_ndvi_pg_filepath = os.path.join(pg_dirpath, "s2_max_ndvi.json")
 
-    collections_url = "https://earthengine.openeo.org/v1.0/collections"
+    def test_validate_process_graph_local(self):
+        """ Validate a process graph using processes defined on a backend. """
 
-    # Validate input file
-    valid = validate_process_graph(os.path.join(PG_FOLDER, "use_case_1.json"), processes_dirpath=LOCAL_PROCESSES_FOLDER,
-                                   collections_url=collections_url)
-    assert not valid  # not valid because not all processes and collections are available
+        collections_url = "https://earthengine.openeo.org/v1.0/collections"
 
-    # Validate input dictionary
-    valid = validate_process_graph(load(open(os.path.join(PG_FOLDER, "use_case_1.json"))),
-                                   processes_dirpath=LOCAL_PROCESSES_FOLDER,
-                                   collections_url=collections_url)
-    assert not valid  # not valid because not all processes and collections are available
+        _, valid = validate_process_graph(self.max_ndvi_pg_filepath, collections_url)
+        assert valid
 
+    def test_validate_process_graph_remote(self):
+        """ Validate a process graph using remote specified processes and collections. """
+        # TODO: vito processes are taken at the moment for validation, change this in the future to GEE
+        _, valid = validate_process_graph(self.max_ndvi_pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
+                                          processes_src="https://openeo.vito.be/openeo/1.0/processes")
+        assert valid
 
-def test_validate_process_graph_remote():
-    """ Validate a process graph using remote specified processes and collections. """
+    def test_validate_wrong_band(self):
+        """ Validate a process graph using remote specified processes and collections. """
+        # TODO: vito processes are taken at the moment for validation, change this in the future to GEE
+        _, valid = validate_process_graph(self.wrong_band_filepath, "https://earthengine.openeo.org/v1.0/collections",
+                                          processes_src="https://openeo.vito.be/openeo/1.0/processes")
 
-    valid = validate_process_graph(os.path.join(PG_FOLDER, "test_1.json"),
-                                   processes_url="http://openeo.vgt.vito.be/openeo/0.4.0/processes",
-                                   collections_url="http://openeo.vgt.vito.be/openeo/0.4.0/collections")
+        assert not valid
 
-    assert valid
-
-
-def test_validate_wrong_band():
-    """ Validate a process graph using remote specified processes and collections. """
-
-    warnings.filterwarnings("ignore")  # suppress warnings caused by validation
-
-    valid = validate_process_graph(os.path.join(PG_FOLDER, "test_s2_wrong_band.json"),
-                                   processes_url="http://openeo.vgt.vito.be/openeo/0.4.0/processes",
-                                   collections_url="http://openeo.vgt.vito.be/openeo/0.4.0/collections")
-
-    assert not valid
 
 if __name__ == '__main__':
     unittest.main()
