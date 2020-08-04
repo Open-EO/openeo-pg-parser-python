@@ -209,7 +209,7 @@ def adjust_from_parameters(process_graph, parameters=None):
                 process = parent_node.process
                 # First, check if parameter is contained in the parameters of the sub-process
                 sub_parameters = process.sub_parameters
-                if sub_parameters and from_parameter_name in sub_parameters.keys():
+                if sub_parameters is not None and from_parameter_name in sub_parameters.keys():
                     parameter = process.sub_parameters[from_parameter_name]
                     node_relatives = parent_node.relatives(link="data", ancestor=True)
                     # parameter is required, but the start node has no input data -> take parent node as data reference
@@ -220,6 +220,9 @@ def adjust_from_parameters(process_graph, parameters=None):
                     # parameter is required and parent node has input data -> add all data relatives of parent node later
                     elif parameter.is_required and node_relatives:
                         node_arguments = []
+                        if len(keys_lineage) == len(node_relatives):  # each from parameter points to each input argument, e.g., in overlap_resolver
+                            from_parameter_idx = list(sub_parameters.keys()).index(from_parameter_name)  # get node index referring to sub-parameter index
+                            node_relatives = [node_relatives[from_parameter_idx]]
                         for node_relative in node_relatives:
                             create_edge(node_relative, node)
                             node_arguments.append({'from_node': '{}'.format(node_relative.id)})
