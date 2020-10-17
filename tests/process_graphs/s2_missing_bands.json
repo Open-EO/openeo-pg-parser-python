@@ -1,0 +1,17 @@
+{"process_graph": {
+    "loadco1": {
+      "process_id": "load_collection",
+      "arguments": {
+        "id": "COPERNICUS/S2",
+        "spatial_extent": {
+          "west": 16.1,
+          "east": 16.6,
+          "north": 48.6,
+          "south": 47.2
+        },
+        "temporal_extent": ["2017-01-01", "2017-02-01"]
+      },
+      "result": true
+    }
+  }
+}

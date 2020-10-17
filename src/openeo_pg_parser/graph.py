@@ -794,9 +794,10 @@ class OpenEONode(Node):
     @property
     def dependencies(self):
         """
-        Dependencies of node are other nodes, which provide mandatory input data for the current node.
-        So before the process of the current node can be executed, all other dependency processes need to be completed
-        first. This includes data dependencies and embedded process graph dependencies (`self.result_process`).
+        Dependencies of a node are other nodes, which provide processed data for the current node.
+        This means that it has to wait as long as all other process nodes are done.
+        So before the process of the current node can be executed or the output data can be redirected to the next process,
+        all other dependency processes need to be completed first.
 
         Returns
         -------
@@ -804,12 +805,8 @@ class OpenEONode(Node):
             Direct dependencies of this node as a sub-graph.
 
         """
-        data_dependencies = list(self.ancestors(link="data").nodes)  # get input data nodes
-        result_dependency = self.result_process # get result process node
 
-        dependencies = data_dependencies if result_dependency is None else data_dependencies + [result_dependency]
-
-        return Graph.from_list(dependencies)
+        return self.ancestors(link="process").nodes
 
     @property
     def parent_process(self):
@@ -840,31 +837,38 @@ class OpenEONode(Node):
 
         Returns
         -------
-        list of graph.OpenEONode :
+        graph.Graph :
             Child processes or an empty list, if there is no child process.
 
         """
 
-        return self.ancestors("process")
+        return self.ancestors("callback")
 
     @property
-    def result_process(self):
+    def result_processes(self):
         """
-        Returns the result process node of an embedded process graph. The result process node is always one level
-        lower then the current node in a process graph hierarchy/tree and is part of `self.child_processes`.
+        Returns the result process nodes of embedded process graphs. The result process nodes are always one level
+        lower then the current node in a process graph hierarchy/tree and are part of `self.child_processes`.
 
         Returns
         -------
-        graph.OpenEONode :
-            Result process node or None, if there is no child process.
+        graph.Graph :
+            Result processes.
 
         """
-        result_process = None
-        for node in self.child_processes:
-            if node.is_result:
-                result_process = node
+        result_processes = [node for node in self.child_processes if node.is_result]
 
-        return result_process
+        return Graph.from_list(result_processes)
+
+    @property
+    def input_data_processes(self):
+        """ graph.Graph : Returns a all nodes providing input data to the current node. """
+        return self.ancestors("data")
+
+    @property
+    def output_data_processes(self):
+        """ graph.Graph : Returns a all nodes to which the output of the current node is provided as input. """
+        return self.descendants("process")
 
     @property
     def description(self):
