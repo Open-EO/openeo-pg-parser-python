@@ -244,12 +244,6 @@ def link_nodes(process_graph):
     process_graph = adjust_from_nodes(process_graph)
 
     # update the edges of the graph
-    #process_graph.update()
-
-    # fill in all from_argument parameters
-    #process_graph = adjust_from_parameters(process_graph, parameters=parameters)
-
-    # update the edges of the graph
     process_graph.update()
 
     # replace all embedded process graphs with the respective node IDs

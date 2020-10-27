@@ -356,12 +356,13 @@ class Graph:
 
     def __getitem__(self, item):
         """
-        Returns node at the given index.
+        Returns node for a given node ID, index or name.
+        If an indexing by name yields multiple results, only the first matching node is returned.
 
         Parameters
         ----------
-        item : int
-            Index of node in graph.
+        item : str or int
+            Node ID or node name.
 
         Returns
         -------
@@ -374,7 +375,11 @@ class Graph:
             if isinstance(item, int):
                 return list(self.nodes)[item]
             else:
-                err_msg = "'{}' is not a valid key.".format(item)
+                for node in self.nodes:
+                    if node.name == item:
+                        return node
+
+                err_msg = "'{}' is not a valid node ID or name.".format(item)
                 raise KeyError(err_msg)
 
     def __str__(self):

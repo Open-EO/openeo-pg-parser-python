@@ -50,5 +50,20 @@ class GraphTester(unittest.TestCase):
         reduce_node = graph['reduce_time_7']
         assert reduce_node.dimension == 't'
 
+    def test_get_node_by_id(self):
+        """ Tests node access in a graph by node id. """
+        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+
+        apply_node = graph['apply_0']
+        assert apply_node.id == 'apply_0'
+
+    def test_get_node_by_name(self):
+        """ Tests node access in a graph by node name. """
+        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+
+        apply_node = graph['apply']
+        assert apply_node.id == 'apply_0'
+
+
 if __name__ == '__main__':
     unittest.main()
