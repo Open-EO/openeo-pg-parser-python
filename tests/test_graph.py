@@ -64,6 +64,13 @@ class GraphTester(unittest.TestCase):
         apply_node = graph['apply']
         assert apply_node.id == 'apply_0'
 
+    def test_has_descendant_process(self):
+        """ Tests if a node has a descendant process. """
+        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+
+        dc_node = graph['load_collection_2']
+        assert dc_node.has_descendant_process(graph, 'save_result')
+
 
 if __name__ == '__main__':
     unittest.main()

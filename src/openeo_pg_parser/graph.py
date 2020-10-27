@@ -375,12 +375,12 @@ class Graph:
             if isinstance(item, int):
                 return list(self.nodes)[item]
             else:
-                for node in self.nodes:
-                    if node.name == item:
-                        return node
-
-                err_msg = "'{}' is not a valid node ID or name.".format(item)
-                raise KeyError(err_msg)
+                node = self.get_node_by_name(item)
+                if node is None:
+                    err_msg = "'{}' is not a valid node ID or name.".format(item)
+                    raise KeyError(err_msg)
+                else:
+                    return node
 
     def __str__(self):
         """ str : string version of the class, i.e., creates a multi-line string from all nodes.  """
@@ -874,6 +874,26 @@ class OpenEONode(Node):
     def output_data_processes(self):
         """ graph.Graph : Returns a all nodes to which the output of the current node is provided as input. """
         return self.descendants("process")
+
+    def has_descendant_process(self, graph, process_id):
+        """
+        Checks if the node has a descendant process identified by `process_id`.
+
+        Parameters
+        ----------
+        graph : graph.Graph
+            Graph to look for descendant processes.
+        process_id : str
+            Unique OpenEO process name.
+
+        Returns
+        -------
+        bool :
+            True if the process was found, false if not.
+
+        """
+        descendant_pids = [node.process_id for node in graph.lineage(self, link='process', ancestors=False)]
+        return process_id in descendant_pids
 
     @property
     def description(self):
