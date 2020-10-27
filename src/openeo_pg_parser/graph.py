@@ -569,10 +569,10 @@ class Graph:
         tag_other = "out" if use_in_nodes else "in"
         ordered_node_ids_filt = []
         for node_id in ordered_node_ids:
-            if tag_this in node_id:
+            if node_id.endswith(tag_this):
                 node_id = node_id.rstrip('_' + tag_this)
                 ordered_node_ids_filt.append(node_id)
-            elif tag_other in node_id:
+            elif node_id.endswith(tag_other):
                 continue
             else:
                 ordered_node_ids_filt.append(node_id)
