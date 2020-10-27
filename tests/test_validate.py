@@ -16,13 +16,14 @@ class ValidateTester(unittest.TestCase):
         collections_url = "https://earthengine.openeo.org/v1.0/collections"
         pg_filepath = os.path.join(self.pg_dirpath, "s2_max_ndvi.json")
 
-        _, valid = validate_process_graph(pg_filepath, collections_url)
+        valid, _ = validate_process_graph(pg_filepath, collections_url)
+
         assert valid
 
     def test_validate_process_graph_remote(self):
         """ Validate a process graph using remote specified processes and collections. """
         pg_filepath = os.path.join(self.pg_dirpath, "s2_max_ndvi.json")
-        _, valid = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
+        valid, _ = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
                                           processes_src="https://openeo.vito.be/openeo/1.0/processes")
         assert valid
 
@@ -30,7 +31,7 @@ class ValidateTester(unittest.TestCase):
         """ Validate a process graph using remote specified processes and collections. """
 
         pg_filepath = os.path.join(self.pg_dirpath, "s2_wrong_band.json")
-        _, valid = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
+        valid, _ = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
                                           processes_src="https://openeo.vito.be/openeo/1.0/processes")
 
         assert not valid
@@ -39,7 +40,7 @@ class ValidateTester(unittest.TestCase):
         """ Validate a process graph, which does not have any bands information stored. """
 
         pg_filepath = os.path.join(self.pg_dirpath, "s2_missing_bands.json")
-        _, valid = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
+        valid, _ = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
                                           processes_src="https://openeo.vito.be/openeo/1.0/processes")
 
         assert valid
