@@ -768,7 +768,12 @@ class OpenEONode(Node):
     @property
     def process_id(self):
         """ str : returns the process ID of an openEO process. """
-        return None if self.content is None else self.content['process_id']
+        return self.content.get('process_id')
+
+    @property
+    def namespace(self):
+        """ str : returns the namespace of the process. """
+        return self.content.get('namespace')
 
     @property
     def arguments(self):
