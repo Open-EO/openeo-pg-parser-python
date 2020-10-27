@@ -17,6 +17,13 @@ class TranslateTester(unittest.TestCase):
         print(graph)
         assert True
 
+    def test_translate_process_graph_none(self):
+        """Translate a minimal process graph with all allowed values set to None."""
+        pg_file = os.path.join(self.pg_dirpath, "none.json")
+        graph = translate_process_graph(pg_file)
+        print(graph)
+        assert True
+
     def test_process_graph_not_found(self):
         """ Checks if an error is thrown when a process graph file cannot be found. """
         pg_filepath = os.path.join(self.pg_dirpath, "does_not_exist.json")
