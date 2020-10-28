@@ -635,7 +635,7 @@ class Graph:
 
         return self
 
-    def plot(self, layout="kamada_kawai", margin=100, bbox=(0, 0, 600, 600), node_size=20):
+    def plot(self, layout="kamada_kawai", edge_name=None, margin=100, bbox=(0, 0, 600, 600), node_size=20):
         """
         Generates an igraph plot object.
 
@@ -651,6 +651,9 @@ class Graph:
                 - "random"
                 - "reingold_tilford"
                 - "reingold_tilford_circular"
+        edge_name : str, optional
+            Name of the edges to plot. This can either be "data" or "process".
+            Default is None, which uses both.
         margin : int, optional
             Specifies the margin of the plot in px (defaults to 100).
         bbox : 2- or 4-tuple, optional
@@ -670,7 +673,7 @@ class Graph:
             igraph plot.
 
         """
-        ig_graph = self.to_igraph()
+        ig_graph = self.to_igraph(edge_name=edge_name)
         ig_layout = ig_graph.layout(layout)
         ig_graph.vs["label"] = [self[node_id].name for node_id in ig_graph.vs["name"]]
         if "name" in ig_graph.es.attribute_names():
@@ -690,6 +693,12 @@ class Graph:
         Converts a graph.Graph into an ig.Graph.
         The ig.Graph object contains nodes with their ID's and edges with their respective names.
 
+        Parameters
+        ----------
+        edge_name : str, optional
+            Name of the edges to plot. This can either be "data" or "process".
+            Default is None, which uses both.
+
         Returns
         -------
         ig.Graph :
@@ -704,7 +713,8 @@ class Graph:
         available_edge_names = ["process", "data"]
         ignore_edge_names = ["callback"]
         if edge_name is not None and edge_name in available_edge_names:
-            ignore_edge_names.extend(available_edge_names.remove(edge_name))
+            available_edge_names.remove(edge_name)
+            ignore_edge_names.extend(available_edge_names)
         for node in self.nodes:
             for edge in node.edges:
                 if edge not in edges:
@@ -816,7 +826,7 @@ class OpenEONode(Node):
 
         """
 
-        return self.ancestors(link="process").nodes
+        return self.ancestors(link="process")
 
     @property
     def parent_process(self):
@@ -831,7 +841,7 @@ class OpenEONode(Node):
             Parent process node or None, if there is no parent process.
 
         """
-        parents = self.descendants("process")
+        parents = self.descendants("callback")
         if len(parents) > 1:
             err_msg = "Only one parent process is allowed."
             raise Exception(err_msg)
@@ -855,7 +865,7 @@ class OpenEONode(Node):
         return self.ancestors("callback")
 
     @property
-    def result_processes(self):
+    def result_process(self):
         """
         Returns the result process nodes of embedded process graphs. The result process nodes are always one level
         lower then the current node in a process graph hierarchy/tree and are part of `self.child_processes`.
@@ -866,9 +876,9 @@ class OpenEONode(Node):
             Result processes.
 
         """
-        result_processes = [node for node in self.child_processes if node.is_result]
-
-        return Graph.from_list(result_processes)
+        for node in self.child_processes:
+            if node.is_result:
+                return node
 
     @property
     def input_data_processes(self):
@@ -923,7 +933,7 @@ class OpenEONode(Node):
     @property
     def uses_callback(self):
         callback_nodes = [edge.nodes[1] for edge in self.edges if "callback" in edge.name]
-        return self in callback_nodes
+        return len(callback_nodes) == 0
 
     @property
     def expects_parent_input(self):

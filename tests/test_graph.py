@@ -71,6 +71,12 @@ class GraphTester(unittest.TestCase):
         dc_node = graph['load_collection_2']
         assert dc_node.has_descendant_process(graph, 'save_result')
 
+    def test_to_igraph(self):
+        """ Tests conversion of internal graph to an iGraph object. """
+        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+        graph.to_igraph(edge_name="process")
+        assert True
+
 
 if __name__ == '__main__':
     unittest.main()
