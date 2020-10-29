@@ -592,8 +592,10 @@ class Graph:
         ----------
         by : str
             Sorting strategy:
-                - 'dependency': Sorts graph by each node dependency,
+                - 'dependency': Sorts graph by each processing dependency,
                                 i.e., nodes being dependent on another node come after this node.
+                - 'result': Sorts the graph also by processing dependency, but this time it puts the node order
+                            following the result data flow.
                 - 'depth': Sorts graph by the depth level of the nodes, from lower to higher depth.
 
         Returns
@@ -606,6 +608,10 @@ class Graph:
         if by == "dependency":
             # use internal algo and igraph for topological sorting
             ordered_node_ids = self._linear_sorting()
+            nodes_ordered = [self[ordered_node_id] for ordered_node_id in ordered_node_ids]
+        elif by == "result":
+            # use internal algo and igraph for topological sorting
+            ordered_node_ids = self._linear_sorting(use_in_nodes=False)
             nodes_ordered = [self[ordered_node_id] for ordered_node_id in ordered_node_ids]
         elif by == "depth":
             depths = [node.depth for node in self.nodes]
