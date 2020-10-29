@@ -292,7 +292,7 @@ def translate_process_graph(pg_filepath, process_defs=None, parameters=None):
 
     # remove first layer of the process graph
     parameters = {} if parameters is None else parameters
-    if "parameters" in process_graph.keys() and process_graph.get("parameters"):
+    if process_graph.get("parameters"):
         for parameter_def in process_graph['parameters']:
             parameter = OpenEOParameter(parameter_def)
             parameters.update({parameter.name: parameter.default_value})

@@ -17,7 +17,7 @@ class TranslateTester(unittest.TestCase):
         print(graph)
         assert True
 
-    def test_translate_process_graph_none(self):
+    def test_translate_process_graph_none_params(self):
         """Translate a minimal process graph with all allowed values set to None."""
         pg_file = os.path.join(self.pg_dirpath, "none.json")
         graph = translate_process_graph(pg_file)
