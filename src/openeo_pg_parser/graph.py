@@ -865,7 +865,7 @@ class OpenEONode(Node):
         return self.ancestors("callback")
 
     @property
-    def result_process(self):
+    def result_processes(self):
         """
         Returns the result process nodes of embedded process graphs. The result process nodes are always one level
         lower then the current node in a process graph hierarchy/tree and are part of `self.child_processes`.
@@ -876,9 +876,9 @@ class OpenEONode(Node):
             Result processes.
 
         """
-        for node in self.child_processes:
-            if node.is_result:
-                return node
+
+        result_processes = [node for node in self.child_processes if node.is_result]
+        return Graph.from_list(result_processes)
 
     @property
     def input_data_processes(self):
@@ -932,8 +932,9 @@ class OpenEONode(Node):
 
     @property
     def uses_callback(self):
-        callback_nodes = [edge.nodes[1] for edge in self.edges if "callback" in edge.name]
-        return len(callback_nodes) == 0
+        """ Checks if a node uses a callback. """
+        callback_nodes = [edge for edge in self.edges if ("callback" == edge.name) and (self == edge.nodes[1])]
+        return len(callback_nodes) > 0
 
     @property
     def expects_parent_input(self):
