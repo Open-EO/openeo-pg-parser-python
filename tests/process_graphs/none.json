@@ -1,0 +1,23 @@
+{
+  "id": "none-pg",
+  "summary": null,
+  "description": null,
+  "returns": null,
+  "parameters": null,
+  "process_graph": {
+    "sub": {
+      "process_id": "subtract",
+      "arguments": {
+        "data": [
+          {
+            "from_argument": "nir"
+          },
+          {
+            "from_argument": "red"
+          }
+        ]
+      },
+      "result": true
+    }
+  }
+}
