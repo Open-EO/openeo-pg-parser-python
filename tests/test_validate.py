@@ -8,32 +8,42 @@ class ValidateTester(unittest.TestCase):
 
     def setUp(self):
         """ Setting up variables for one test. """
-        pg_dirpath = os.path.join(os.path.dirname(__file__), 'process_graphs')
-        self.wrong_band_filepath = os.path.join(pg_dirpath, "test_s2_wrong_band.json")
-        self.max_ndvi_pg_filepath = os.path.join(pg_dirpath, "s2_max_ndvi.json")
+        self.pg_dirpath = os.path.join(os.path.dirname(__file__), 'process_graphs')
 
     def test_validate_process_graph_local(self):
         """ Validate a process graph using processes defined on a backend. """
 
         collections_url = "https://earthengine.openeo.org/v1.0/collections"
+        pg_filepath = os.path.join(self.pg_dirpath, "s2_max_ndvi.json")
 
-        _, valid = validate_process_graph(self.max_ndvi_pg_filepath, collections_url)
+        valid, _ = validate_process_graph(pg_filepath, collections_url)
+
         assert valid
 
     def test_validate_process_graph_remote(self):
         """ Validate a process graph using remote specified processes and collections. """
-        # TODO: vito processes are taken at the moment for validation, change this in the future to GEE
-        _, valid = validate_process_graph(self.max_ndvi_pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
+        pg_filepath = os.path.join(self.pg_dirpath, "s2_max_ndvi.json")
+        valid, _ = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
                                           processes_src="https://openeo.vito.be/openeo/1.0/processes")
         assert valid
 
     def test_validate_wrong_band(self):
         """ Validate a process graph using remote specified processes and collections. """
-        # TODO: vito processes are taken at the moment for validation, change this in the future to GEE
-        _, valid = validate_process_graph(self.wrong_band_filepath, "https://earthengine.openeo.org/v1.0/collections",
+
+        pg_filepath = os.path.join(self.pg_dirpath, "s2_wrong_band.json")
+        valid, _ = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
                                           processes_src="https://openeo.vito.be/openeo/1.0/processes")
 
         assert not valid
+
+    def test_validate_missing_bands(self):
+        """ Validate a process graph, which does not have any bands information stored. """
+
+        pg_filepath = os.path.join(self.pg_dirpath, "s2_missing_bands.json")
+        valid, _ = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
+                                          processes_src="https://openeo.vito.be/openeo/1.0/processes")
+
+        assert valid
 
 
 if __name__ == '__main__':

@@ -1,5 +1,4 @@
 import os
-import warnings
 from openeo_pg_parser.translate import translate_process_graph
 from openeo_pg_parser.utils import load_processes
 from openeo_pg_parser.utils import load_collections
@@ -24,6 +23,8 @@ def validate_processes(process_graph, processes_src):
     -------
     valid : bool
         If True, the given process graph is valid with respect to the given process definitions.
+    err_msgs : list
+        List of strings containing error or user information messages if `valid` is False.
 
     """
 
@@ -43,7 +44,8 @@ def validate_processes(process_graph, processes_src):
                                                                                        node.process_id)
                         err_msgs.append(err_msg)
 
-    return err_msgs, len(err_msgs) == 0
+    valid = len(err_msgs) == 0
+    return valid, err_msgs
 
 
 def validate_collections(process_graph, collections_src):
@@ -64,7 +66,10 @@ def validate_collections(process_graph, collections_src):
     Returns
     -------
     valid : bool
-        If True, the given process graph is valid with respect to the given process definitions.
+        If True, the given process graph is valid with respect to the given collection definitions.
+    err_msgs : list
+        List of strings containing error or user information messages if `valid` is False.
+
     """
 
     err_msgs = []
@@ -84,7 +89,7 @@ def validate_collections(process_graph, collections_src):
                         available_bands.extend([band.lower() for band in collection_dim['values']])
 
                 # check bands
-                if 'bands' in node.arguments.keys() and available_bands:
+                if node.arguments.get('bands') is not None and available_bands:
                     node_bands = [band.lower() for band in node.arguments['bands']]
                     for node_band in node_bands:
                         if node_band not in available_bands:
@@ -96,17 +101,21 @@ def validate_collections(process_graph, collections_src):
                                                                              available_bands_str)
                             err_msgs.append(err_msg)
 
-    return err_msgs, len(err_msgs) == 0
+    valid = len(err_msgs) == 0
+    return valid, err_msgs
 
 
 def validate_process_graph(pg_filepath, collections_src, processes_src=None, parameters=None):
     """
-    Validate the input process graph according to the given list of processes.
+    Validate the input process graph with respect to:
+        - processes
+        - collections
+        - node names
 
     Parameters
     ----------
     pg_filepath : str or dict
-        Filepath to process graph (json file) or parsed file as a dictionary.
+        File path to process graph (json file) or parsed file as a dictionary.
     collections_src : dict or str or list
         It can be:
             - dictionary of loaded collection definitions (keys are the collection ID's)
@@ -126,7 +135,9 @@ def validate_process_graph(pg_filepath, collections_src, processes_src=None, par
     Returns
     -------
     valid : bool
-        If True, the given process graph is valid with respect to the given process definitions.
+        If True, the given process graph is valid.
+    err_msgs : list
+        List of strings containing error or user information messages if `valid` is False.
 
     """
     # define source of process definitions
@@ -135,13 +146,13 @@ def validate_process_graph(pg_filepath, collections_src, processes_src=None, par
 
     process_graph = translate_process_graph(pg_filepath, process_defs=process_defs, parameters=parameters)
 
-    proc_err_msgs, proc_valid = validate_processes(process_graph, process_defs)
-    coll_err_msgs, coll_valid = validate_collections(process_graph, collections_src)
+    proc_valid, proc_err_msgs = validate_processes(process_graph, process_defs)
+    coll_valid, coll_err_msgs = validate_collections(process_graph, collections_src)
 
     pg_err_msgs = proc_err_msgs + coll_err_msgs
     pg_valid = proc_valid & coll_valid
 
-    return pg_err_msgs, pg_valid
+    return pg_valid, pg_err_msgs
 
 
 if __name__ == '__main__':

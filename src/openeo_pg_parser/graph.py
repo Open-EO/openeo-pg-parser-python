@@ -3,9 +3,48 @@ import numpy as np
 from pprint import pformat
 from collections import OrderedDict
 import igraph as ig
+
+from openeo_pg_parser.utils import find_node_inputs
 from openeo_pg_parser.definitions import OpenEOProcess
 from openeo_pg_parser.definitions import OpenEOParameter
 
+
+# def rec_sort_process_graph(process_graph, nodes, depth=0, list_idx=0):
+#     while True:
+#
+#         current_node = nodes[list_idx]
+#         pg_lower_dep = process_graph.lineage(current_node, link="callback", ancestors=True,
+#                                              include_node=False)
+#         if len(pg_lower_dep) == 0:
+#             return
+#         else:
+#             depth rec_sort_process_graph(process_graph, sorted_nodes, depth=depth)
+def create_edge(node_from, node_to, name="data", hidden=False):
+    """
+    Creates a directed edge of type `graph.Edge` between the nodes `node_from` and `node_to`.
+
+    Parameters
+    ----------
+    node_from : graph.Node
+        Start node of the edge.
+    node_to : graph.Node
+        End node of the edge.
+    name : str, optional
+        Name of the edge (default is "data")
+    hidden : bool, optional
+            True if edge should be ignored, e.g. for sorting (defaults to False).
+
+    Returns
+    -------
+    graph.Edge
+        Created directed edge consisting of the two given nodes.
+
+    """
+    edge_nodes = [node_from, node_to]
+    edge_id = "_".join([edge_node.id for edge_node in edge_nodes])
+    edge = Edge(id=edge_id, name=name, nodes=edge_nodes, hidden=hidden)
+    node_to.add_edge(edge)
+    node_from.add_edge(edge)
 
 class Node:
     """
@@ -317,12 +356,13 @@ class Graph:
 
     def __getitem__(self, item):
         """
-        Returns node at the given index.
+        Returns node for a given node ID, index or name.
+        If an indexing by name yields multiple results, only the first matching node is returned.
 
         Parameters
         ----------
-        item : int
-            Index of node in graph.
+        item : str or int
+            Node ID or node name.
 
         Returns
         -------
@@ -335,8 +375,12 @@ class Graph:
             if isinstance(item, int):
                 return list(self.nodes)[item]
             else:
-                err_msg = "'{}' is not a valid key.".format(item)
-                raise KeyError(err_msg)
+                node = self.get_node_by_name(item)
+                if node is None:
+                    err_msg = "'{}' is not a valid node ID or name.".format(item)
+                    raise KeyError(err_msg)
+                else:
+                    return node
 
     def __str__(self):
         """ str : string version of the class, i.e., creates a multi-line string from all nodes.  """
@@ -469,6 +513,77 @@ class Graph:
 
         return Graph.from_list(nodes)
 
+    def _linear_sorting(self, use_in_nodes=True):
+        """
+        Internal sorting method for ordering the Node IDs in linear manner corresponding to their call order.
+        A callback node (calling/embedding a sub-process graph) is passed at least two times, once for
+        passing the output of itself to the sub-process (`use_in_nodes=True`) and once for passing the output
+        from the sub-process to the next process (`use_in_nodes=False`).
+
+        Parameters
+        ----------
+        use_in_nodes : bool, optional
+            If true, the node is put into the order, when it is passed/called the first time passing output to the sub-process.
+            If false, the node is put into the order, when it is passed/called the second time passing output of
+            the sub-process to the next process.
+
+        Returns
+        -------
+        ordered_node_ids_filt : list
+            List of node IDs sorted by their call order.
+
+        """
+        edges = []
+        for node in self.nodes:
+            for edge in node.edges:
+                if edge not in edges and edge.name != "callback":
+                    edges.append(edge)
+
+        tuple_edges = []
+        for edge in edges:
+            first_node = edge.nodes[0]
+            sec_node = edge.nodes[1]
+            if first_node.depth < sec_node.depth:
+                if edge.name == "data":
+                    if sec_node.uses_callback:
+                        tuple_edges.append((first_node.id + "_in", sec_node.id + "_in"))
+                    else:
+                        tuple_edges.append((first_node.id + "_in", sec_node.id))
+            elif first_node.depth > sec_node.depth:
+                if edge.name == "process":
+                    if first_node.uses_callback:
+                        tuple_edges.append((first_node.id + "_out", sec_node.id + "_out"))
+                    else:
+                        tuple_edges.append((first_node.id, sec_node.id + "_out"))
+            else:
+                if edge.name == "process":
+                    if first_node.uses_callback and sec_node.uses_callback:
+                        tuple_edges.append((first_node.id + "_out", sec_node.id + "_in"))
+                    elif not first_node.uses_callback and sec_node.uses_callback:
+                        tuple_edges.append((first_node.id, sec_node.id + "_in"))
+                    elif first_node.uses_callback and not sec_node.uses_callback:
+                        tuple_edges.append((first_node.id + "_out", sec_node.id))
+                    else:
+                        tuple_edges.append((first_node.id, sec_node.id))
+
+        ig_graph = ig.Graph.TupleList(tuple_edges, directed=True)
+        node_order = ig_graph.topological_sorting()
+        ordered_node_ids = np.array(ig_graph.vs['name'])[node_order]
+
+        tag_this = "in" if use_in_nodes else "out"
+        tag_other = "out" if use_in_nodes else "in"
+        ordered_node_ids_filt = []
+        for node_id in ordered_node_ids:
+            if node_id.endswith(tag_this):
+                node_id = node_id.rstrip('_' + tag_this)
+                ordered_node_ids_filt.append(node_id)
+            elif node_id.endswith(tag_other):
+                continue
+            else:
+                ordered_node_ids_filt.append(node_id)
+
+        return ordered_node_ids_filt
+
     def sort(self, by='dependency'):
         """
         Sorts graph according to sorting strategy.
@@ -477,20 +592,26 @@ class Graph:
         ----------
         by : str
             Sorting strategy:
-                - 'dependency': Sorts graph by each node dependency,
+                - 'dependency': Sorts graph by each processing dependency,
                                 i.e., nodes being dependent on another node come after this node.
+                - 'result': Sorts the graph also by processing dependency, but this time it puts the node order
+                            following the result data flow.
+                - 'depth': Sorts graph by the depth level of the nodes, from lower to higher depth.
 
         Returns
         -------
         graph.Graph
             Sorted graph.
+
         """
 
         if by == "dependency":
-            # use igraph for topological sorting
-            ig = self.to_igraph()
-            node_order = ig.topological_sorting()
-            ordered_node_ids = np.array(ig.vs['name'])[node_order]
+            # use internal algo and igraph for topological sorting
+            ordered_node_ids = self._linear_sorting()
+            nodes_ordered = [self[ordered_node_id] for ordered_node_id in ordered_node_ids]
+        elif by == "result":
+            # use internal algo and igraph for topological sorting
+            ordered_node_ids = self._linear_sorting(use_in_nodes=False)
             nodes_ordered = [self[ordered_node_id] for ordered_node_id in ordered_node_ids]
         elif by == "depth":
             depths = [node.depth for node in self.nodes]
@@ -520,7 +641,7 @@ class Graph:
 
         return self
 
-    def plot(self, layout="kamada_kawai", margin=100, bbox=(0, 0, 600, 600), node_size=20):
+    def plot(self, layout="kamada_kawai", edge_name=None, margin=100, bbox=(0, 0, 600, 600), node_size=20):
         """
         Generates an igraph plot object.
 
@@ -536,6 +657,9 @@ class Graph:
                 - "random"
                 - "reingold_tilford"
                 - "reingold_tilford_circular"
+        edge_name : str, optional
+            Name of the edges to plot. This can either be "data" or "process".
+            Default is None, which uses both.
         margin : int, optional
             Specifies the margin of the plot in px (defaults to 100).
         bbox : 2- or 4-tuple, optional
@@ -555,7 +679,7 @@ class Graph:
             igraph plot.
 
         """
-        ig_graph = self.to_igraph()
+        ig_graph = self.to_igraph(edge_name=edge_name)
         ig_layout = ig_graph.layout(layout)
         ig_graph.vs["label"] = [self[node_id].name for node_id in ig_graph.vs["name"]]
         if "name" in ig_graph.es.attribute_names():
@@ -570,10 +694,16 @@ class Graph:
 
         return ig.plot(ig_graph, layout=ig_layout, margin=margin, bbox=bbox, vertex_size=node_size)
 
-    def to_igraph(self):
+    def to_igraph(self, edge_name=None):
         """
         Converts a graph.Graph into an ig.Graph.
         The ig.Graph object contains nodes with their ID's and edges with their respective names.
+
+        Parameters
+        ----------
+        edge_name : str, optional
+            Name of the edges to plot. This can either be "data" or "process".
+            Default is None, which uses both.
 
         Returns
         -------
@@ -586,16 +716,21 @@ class Graph:
 
         """
         edges = []
+        available_edge_names = ["process", "data"]
+        ignore_edge_names = ["callback"]
+        if edge_name is not None and edge_name in available_edge_names:
+            available_edge_names.remove(edge_name)
+            ignore_edge_names.extend(available_edge_names)
         for node in self.nodes:
             for edge in node.edges:
-                if not edge.hidden and edge not in edges:
+                if edge not in edges:
                     # ignore nodes, which are not contained in the graph
                     if edge.nodes[0].id not in self.ids or edge.nodes[1].id not in self.ids:
                         continue
-                    # ignore non-result, callback nodes
-                    if edge.name == "callback" and not edge.nodes[0].is_result:
+                    if edge.name in ignore_edge_names:
                         continue
                     edges.append(edge)
+
         if edges:
             tuple_edges = [(edge.nodes[0].id, edge.nodes[1].id) for edge in edges]
             ig_graph = ig.Graph.TupleList(tuple_edges, directed=True)
@@ -649,7 +784,12 @@ class OpenEONode(Node):
     @property
     def process_id(self):
         """ str : returns the process ID of an openEO process. """
-        return None if self.content is None else self.content['process_id']
+        return self.content.get('process_id')
+
+    @property
+    def namespace(self):
+        """ str : returns the namespace of the process. """
+        return self.content.get('namespace')
 
     @property
     def arguments(self):
@@ -680,9 +820,10 @@ class OpenEONode(Node):
     @property
     def dependencies(self):
         """
-        Dependencies of node are other nodes, which provide mandatory input data for the current node.
-        So before the process of the current node can be executed, all other dependency processes need to be completed
-        first. This includes data dependencies and embedded process graph dependencies (`self.result_process`).
+        Dependencies of a node are other nodes, which provide processed data for the current node.
+        This means that it has to wait as long as all other process nodes are done.
+        So before the process of the current node can be executed or the output data can be redirected to the next process,
+        all other dependency processes need to be completed first.
 
         Returns
         -------
@@ -690,12 +831,8 @@ class OpenEONode(Node):
             Direct dependencies of this node as a sub-graph.
 
         """
-        data_dependencies = list(self.ancestors(link="data").nodes)  # get input data nodes
-        result_dependency = self.result_process # get result process node
 
-        dependencies = data_dependencies if result_dependency is None else data_dependencies + [result_dependency]
-
-        return Graph.from_list(dependencies)
+        return self.ancestors(link="process")
 
     @property
     def parent_process(self):
@@ -726,7 +863,7 @@ class OpenEONode(Node):
 
         Returns
         -------
-        list of graph.OpenEONode :
+        graph.Graph :
             Child processes or an empty list, if there is no child process.
 
         """
@@ -734,23 +871,50 @@ class OpenEONode(Node):
         return self.ancestors("callback")
 
     @property
-    def result_process(self):
+    def result_processes(self):
         """
-        Returns the result process node of an embedded process graph. The result process node is always one level
-        lower then the current node in a process graph hierarchy/tree and is part of `self.child_processes`.
+        Returns the result process nodes of embedded process graphs. The result process nodes are always one level
+        lower then the current node in a process graph hierarchy/tree and are part of `self.child_processes`.
 
         Returns
         -------
-        graph.OpenEONode :
-            Result process node or None, if there is no child process.
+        graph.Graph :
+            Result processes.
 
         """
-        result_process = None
-        for node in self.child_processes:
-            if node.is_result:
-                result_process = node
 
-        return result_process
+        result_processes = [node for node in self.child_processes if node.is_result]
+        return Graph.from_list(result_processes)
+
+    @property
+    def input_data_processes(self):
+        """ graph.Graph : Returns a all nodes providing input data to the current node. """
+        return self.ancestors("data")
+
+    @property
+    def output_data_processes(self):
+        """ graph.Graph : Returns a all nodes to which the output of the current node is provided as input. """
+        return self.descendants("process")
+
+    def has_descendant_process(self, graph, process_id):
+        """
+        Checks if the node has a descendant process identified by `process_id`.
+
+        Parameters
+        ----------
+        graph : graph.Graph
+            Graph to look for descendant processes.
+        process_id : str
+            Unique OpenEO process name.
+
+        Returns
+        -------
+        bool :
+            True if the process was found, false if not.
+
+        """
+        descendant_pids = [node.process_id for node in graph.lineage(self, link='process', ancestors=False)]
+        return process_id in descendant_pids
 
     @property
     def description(self):
@@ -771,6 +935,18 @@ class OpenEONode(Node):
     def is_reducer(self):
         """ bool : Checks if the current process is a reducer or not. """
         return self.process.is_reducer
+
+    @property
+    def uses_callback(self):
+        """ Checks if a node uses a callback. """
+        callback_nodes = [edge for edge in self.edges if ("callback" == edge.name) and (self == edge.nodes[1])]
+        return len(callback_nodes) > 0
+
+    @property
+    def expects_parent_input(self):
+        """ """
+        keys_lineage = find_node_inputs(self, "from_parameter")
+        return len(keys_lineage) > 0
 
     @property
     def dimension(self):

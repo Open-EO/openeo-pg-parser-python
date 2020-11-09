@@ -3,7 +3,6 @@ import glob
 import requests
 from json import load
 
-
 def url_is_valid(url):
     """
     Very simple check if URL exists/is valid or not.
@@ -265,4 +264,31 @@ def set_obj_elem_from_keys(obj, keys, value):
         return set_obj_elem_from_keys(obj[keys[0]], keys[1:], value)
     else:
         obj[keys[0]] = value
+
+
+def find_node_inputs(node, data_link):
+    """
+    Find input node IDs corresponding to a given linkage for a sub process graph.
+
+    Parameters
+    ----------
+    node : openEONode
+        Node of interest.
+    data_link : str
+        Linkage name, e.g. "from_node" or "from_parameter".
+
+    Returns
+    -------
+    keys_lineage : list of lists
+        Adjusted keys indexes/lineage to go from the sub process graph to input node ID.
+    """
+
+    keys_lineage = []
+    for key, value in node.arguments.items():
+        keys_lineage_arg, _, _, _ = walk_process_dictionary(value, break_points=["process_graph"])
+        if keys_lineage_arg:
+            keys_lineage.extend([[key] + elem for elem in keys_lineage_arg if elem[-1] == data_link])
+
+    return keys_lineage
+
 

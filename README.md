@@ -3,8 +3,8 @@
 This package allows to parse an *openEO* process graph (JSON) and convert it to a traversable Python object (`graph`).
 The resulting directed `graph` object consists of nodes and edges and can help for instance to identify node relationships 
 or to sort a graph by a specific attribute. The nodes are instances of `OpenEONode`, which can be used to extract information from itself, e.g., if it is a reducer and if so what dimension is used for reduction, or the direct neighbours, i.e., parent and child processes.
-The nodes are connected via directed edges which represent the data flow (input and output) and can have two values: "data" or "callback". "data" specifies that the output of one node is the input for the second node.
-"callback" is a connection between two processes, whereas the parent process is the embedded process graph (because the data is passed to the process, which is embedding the current one, after processing is done). 
+The nodes are connected via directed edges which represent the data flow (input and output) and can have two values: "data" or "process". "data" specifies that the output of one node is the input for the second node.
+"process" is a connection between two processes, whereas the parent process is the one which needs to be completed first, before its data can be used by the child process or passed on to subsequent nodes. 
 
 Moreover, one can display a parsed process graph `process graph` in two ways. Once via `print(process graph)` to print the string representation of all the nodes in the graph and once via `process_graph.plot()`.
 The latter option uses the Python package *igraph* to plot the graph on a map.
@@ -42,171 +42,139 @@ The latter option uses the Python package *igraph* to plot the graph on a map.
 
 ## Example
 
-As a short example, we can translate the following process graph, which loads S-2 data and computes the maximum NDVI value over a specific time span.
+As a short example, we can translate the following process graph, which loads S-2 data and computes the minimum EVI value over a specific time span.
 ```json
-{
-  "process_graph":
+{"process_graph":
   {
-    "apply": {
-      "process_id": "apply",
-      "arguments": {
-        "data": {
-          "from_node": "reduce_time"
-        },
-        "process": {
-          "process_graph": {
-            "linear_scale_range": {
-              "process_id": "linear_scale_range",
-              "arguments": {
-                "x": {
-                  "from_parameter": "x"
-                },
-                "inputMin": -1,
-                "inputMax": 1,
-                "outputMax": 255
+      "dc": {
+        "process_id": "load_collection",
+        "description": "Loading the data; The order of the specified bands is important for the following reduce operation.",
+        "arguments": {
+          "id": "S2MSI2A",
+          "spatial_extent": {
+            "west": 11.279182434082033,
+            "east": 11.406898498535158,
+            "north": 46.522729291844286,
+            "south": 46.464349400461145
+          },
+          "temporal_extent": ["2018-06-04", "2018-06-23"],
+          "bands": ["B4", "B8"]
+        }
+      },
+      "evi": {
+        "process_id": "reduce_dimension",
+        "description": "Compute the EVI. Formula: 2.5 * (NIR - RED) / (1 + NIR + 6*RED + -7.5*BLUE)",
+        "arguments": {
+          "data": {"from_node": "dc"},
+          "dimension": "spectral",
+          "reducer": {
+            "process_graph": {
+              "nir": {
+                "process_id": "array_element",
+                "arguments": {
+                  "data": {"from_parameter": "data"},
+                  "index": 0
+                }
               },
-              "result": true
+              "red": {
+                "process_id": "array_element",
+                "arguments": {
+                  "data": {"from_parameter": "data"},
+                  "index": 1
+                }
+              },
+              "blue": {
+                "process_id": "array_element",
+                "arguments": {
+                  "data": {"from_parameter": "data"},
+                  "index": 2
+                }
+              },
+              "sub": {
+                "process_id": "subtract",
+                "arguments": {
+                  "data": [{"from_node": "nir"}, {"from_node": "red"}]
+                }
+              },
+              "p1": {
+                "process_id": "product",
+                "arguments": {
+                  "data": [6, {"from_node": "red"}]
+                }
+              },
+              "p2": {
+                "process_id": "product",
+                "arguments": {
+                  "data": [-7.5, {"from_node": "blue"}]
+                }
+              },
+              "sum": {
+                "process_id": "sum",
+                "arguments": {
+                  "data": [10000, {"from_node": "nir"}, {"from_node": "p1"}, {"from_node": "p2"}]
+                }
+              },
+              "div": {
+                "process_id": "divide",
+                "arguments": {
+                  "data": [{"from_node": "sub"}, {"from_node": "sum"}]
+                }
+              },
+              "p3": {
+                "process_id": "product",
+                "arguments": {
+                  "data": [2.5, {"from_node": "div"}]
+                },
+                "result": true
+              }
             }
           }
         }
       },
-      "description": "Stretch range from -1 / 1 to 0 / 255 for PNG visualization."
-    },
-    "load_collection": {
-      "process_id": "load_collection",
-      "arguments": {
-        "id": "COPERNICUS/S2",
-        "spatial_extent": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                7.246856689453125,
-                47.167543112150554
-              ],
-              [
-                7.218189239501953,
-                47.13520594493793
-              ],
-              [
-                7.23552703857422,
-                47.11570074493338
-              ],
-              [
-                7.2803306579589835,
-                47.11488300552253
-              ],
-              [
-                7.305736541748048,
-                47.14793302647546
-              ],
-              [
-                7.279300689697265,
-                47.16999386399103
-              ],
-              [
-                7.246856689453125,
-                47.167543112150554
-              ]
-            ]
-          ]
-        },
-        "temporal_extent": [
-          "2018-01-01T00:00:00Z",
-          "2018-01-31T23:59:59Z"
-        ],
-        "bands": [
-          "B4",
-          "B8"
-        ]
-      },
-      "description": "Loading the data; The order of the specified bands is important for the following reduce operation."
-    },
-    "reduce_bands": {
-      "process_id": "reduce_dimension",
-      "arguments": {
-        "data": {
-          "from_node": "load_collection"
-        },
-        "reducer": {
-          "process_graph": {
-            "red": {
-              "process_id": "array_element",
-              "arguments": {
-                "data": {
-                  "from_parameter": "data"
+      "mintime": {
+        "process_id": "reduce_dimension",
+        "description": "Compute a minimum time composite by reducing the temporal dimension",
+        "arguments": {
+          "data": {"from_node": "evi"},
+          "dimension": "temporal",
+          "reducer": {
+            "process_graph": {
+              "min": {
+                "process_id": "min",
+                "arguments": {
+                  "data": {"from_parameter": "data"}
                 },
-                "label": "B4"
+                "result": true
               }
-            },
-            "nir": {
-              "process_id": "array_element",
-              "arguments": {
-                "data": {
-                  "from_parameter": "data"
-                },
-                "label": "B8"
-              }
-            },
-            "ndvi": {
-              "process_id": "normalized_difference",
-              "arguments": {
-                "x": {
-                  "from_node": "nir"
-                },
-                "y": {
-                  "from_node": "red"
-                }
-              },
-              "result": true
             }
           }
-        },
-        "dimension": "bands"
+        }
       },
-      "description": "Compute the NDVI: (NIR - RED) / (NIR + RED)"
-    },
-    "reduce_time": {
-      "process_id": "reduce_dimension",
-      "arguments": {
-        "data": {
-          "from_node": "reduce_bands"
+      "save": {
+        "process_id": "save_result",
+        "arguments": {
+          "data": {"from_node": "mintime"},
+          "format": "Gtiff"
         },
-        "reducer": {
-          "process_graph": {
-            "max": {
-              "process_id": "max",
-              "arguments": {
-                "data": {
-                  "from_parameter": "data"
-                }
-              },
-              "result": true
-            }
-          }
-        },
-        "dimension": "t"
-      },
-      "description": "Compute a minimum time composite by reducing the temporal dimension"
-    },
-    "save": {
-      "process_id": "save_result",
-      "arguments": {
-        "data": {
-          "from_node": "apply"
-        },
-        "format": "PNG"
-      },
-      "result": true
-    }
+        "result": true
+      }
   }
 }
 ```
-After parsing this process graph we get the following graph structure:
+After parsing this process graph we get the following graph structure (only showing "process" edges):
 
-<img align="center" src="examples/s2_max_ndvi_graph.png" height="700" width="700">
+<img align="center" src="examples/s2_min_evi_graph.png" height="700" width="700">
 
-Please have a look at the Juypter Notebooks under "examples" for further details.
+Please have a look at the Jupyter Notebooks under "examples" for further details.
+
+## Contribution
+
+If you want to contribute to this project in terms of new functionality, bug fixes or openEO API alignments, please follow the instructions below:
+* Fork this repo 
+* Add your feature or bug fix
+* Add a test or extend a test 
+* Create a PR to the master branch
+* One of the responsible persons for this project will check the PR and complete it if everything is fine
 
 ## Note
 
