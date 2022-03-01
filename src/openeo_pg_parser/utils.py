@@ -75,9 +75,13 @@ def load_processes(src):
             filepaths = glob.glob(os.path.join(src, "*.json"))
             process_list = [load_json_file(filepath) for filepath in filepaths]
         elif isinstance(src, str) and url_is_valid(src):
+            # Is it the URL of a JSON file or a /processes endpoint?
             r = requests.get(url=src)
             data = r.json()
-            process_list = data['processes']
+            if 'processes' in data:
+                process_list = data['processes']
+            else:
+                process_list = data
         elif isinstance(src, list):
             process_list = src
         else:

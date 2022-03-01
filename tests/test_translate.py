@@ -2,6 +2,7 @@ import os
 import unittest
 from openeo_pg_parser.translate import translate_process_graph
 
+OPENEO_PROCESSES_ENDPOINT = "https://processes.openeo.org/1.2.0/processes.json"
 
 class TranslateTester(unittest.TestCase):
     """  Testing the module `translate` for different process graph translations. """
@@ -13,14 +14,14 @@ class TranslateTester(unittest.TestCase):
     def test_translate_process_graph(self):
         """ Translates a process graph from openEO syntax to a Python traversable object. """
         pg_filepath = os.path.join(self.pg_dirpath, "s1_uc1_polarization.json")
-        graph = translate_process_graph(pg_filepath)
+        graph = translate_process_graph(pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
         print(graph)
         assert True
 
     def test_translate_process_graph_none_params(self):
         """Translate a minimal process graph with all allowed values set to None."""
         pg_file = os.path.join(self.pg_dirpath, "none.json")
-        graph = translate_process_graph(pg_file)
+        graph = translate_process_graph(pg_file,process_defs=OPENEO_PROCESSES_ENDPOINT)
         print(graph)
         assert True
 
@@ -28,7 +29,7 @@ class TranslateTester(unittest.TestCase):
         """ Checks if an error is thrown when a process graph file cannot be found. """
         pg_filepath = os.path.join(self.pg_dirpath, "does_not_exist.json")
         try:
-            translate_process_graph(pg_filepath)
+            translate_process_graph(pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
         except FileNotFoundError:
             assert True
 
@@ -36,14 +37,14 @@ class TranslateTester(unittest.TestCase):
         """ Tests parsing of a globally defined parameter. """
         pg_filepath = os.path.join(self.pg_dirpath, "s2_max_ndvi_global_parameter.json")
         parameters = {'test_from_parameter': 3}
-        graph = translate_process_graph(pg_filepath, parameters=parameters)
+        graph = translate_process_graph(pg_filepath, parameters=parameters,process_defs=OPENEO_PROCESSES_ENDPOINT)
 
         assert graph['ndvi_6'].arguments['y'] == 3
 
     def test_lc_from_global_parameters(self):
         """ Tests parsing of globally defined parameters given in the process graph itself. """
         pg_filepath = os.path.join(self.pg_dirpath, "lc_global_parameter.json")
-        graph = translate_process_graph(pg_filepath)
+        graph = translate_process_graph(pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
 
         assert graph['dc_0'].arguments['bands'] == ['B08', 'B04', 'B02']
         assert graph['dc_0'].arguments['id'] == 'COPERNICUS/S2'
@@ -51,14 +52,14 @@ class TranslateTester(unittest.TestCase):
     def test_from_local_parameter(self):
         """ Tests parsing of a locally defined parameter. """
         pg_filepath = os.path.join(self.pg_dirpath, "s2_max_ndvi_local_parameter.json")
-        graph = translate_process_graph(pg_filepath)
+        graph = translate_process_graph(pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
 
         assert graph['ndvi_6'].arguments['y'] == 3
 
     def test_lc_sub_processes(self):
         """ Tests correct linkage of sub-processes in load collection process. """
         pg_filepath = os.path.join(self.pg_dirpath, "lc_sub_processes.json")
-        graph = translate_process_graph(pg_filepath)
+        graph = translate_process_graph(pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
 
         assert len(graph) == 3
         assert len(graph['loadco1_0'].result_processes) == 2
