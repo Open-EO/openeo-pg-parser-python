@@ -2,7 +2,7 @@ import os
 import unittest
 from openeo_pg_parser.translate import translate_process_graph
 
-OPENEO_PROCESSES_ENDPOINT = "https://processes.openeo.org/processes.json"
+OPENEO_PROCESSES_ENDPOINT = "https://processes.openeo.org/1.2.0/processes.json"
 
 class GraphTester(unittest.TestCase):
     """  Tests all functionalities of the class `Graph`. """
