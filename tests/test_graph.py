@@ -2,6 +2,7 @@ import os
 import unittest
 from openeo_pg_parser.translate import translate_process_graph
 
+OPENEO_PROCESSES_ENDPOINT = "https://processes.openeo.org/processes.json"
 
 class GraphTester(unittest.TestCase):
     """  Tests all functionalities of the class `Graph`. """
@@ -14,7 +15,7 @@ class GraphTester(unittest.TestCase):
     def test_sort_process_graph(self):
         """ Tests sorting of a process graph. """
 
-        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+        graph = translate_process_graph(self.max_ndvi_pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
         assert list(graph.ids) == ["apply_0", "linear_scale_range_1", "load_collection_2", "reduce_bands_3", "red_4",
                                    "nir_5", "ndvi_6", "reduce_time_7", "max_8", "save_9"]
 
@@ -24,7 +25,7 @@ class GraphTester(unittest.TestCase):
 
     def test_get_parent_process(self):
         """ Tests to retrieve the parent process of an embedded process graph. """
-        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+        graph = translate_process_graph(self.max_ndvi_pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
         lsr_node = graph['linear_scale_range_1']
         apply_node = graph['apply_0']
 
@@ -32,7 +33,7 @@ class GraphTester(unittest.TestCase):
 
     def test_is_reducer(self):
         """ Tests reducer identification. """
-        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+        graph = translate_process_graph(self.max_ndvi_pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
 
         apply_node = graph['apply_0']
         assert not apply_node.is_reducer
@@ -42,38 +43,40 @@ class GraphTester(unittest.TestCase):
 
     def test_get_dimension(self):
         """ Tests dimension retrieval. """
-        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+        graph = translate_process_graph(self.max_ndvi_pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
 
         apply_node = graph['apply_0']
+        print(apply_node)
         assert apply_node.dimension is None
 
         reduce_node = graph['reduce_time_7']
+        print(reduce_node)
         assert reduce_node.dimension == 't'
 
     def test_get_node_by_id(self):
         """ Tests node access in a graph by node id. """
-        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+        graph = translate_process_graph(self.max_ndvi_pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
 
         apply_node = graph['apply_0']
         assert apply_node.id == 'apply_0'
 
     def test_get_node_by_name(self):
         """ Tests node access in a graph by node name. """
-        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+        graph = translate_process_graph(self.max_ndvi_pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
 
         apply_node = graph['apply']
         assert apply_node.id == 'apply_0'
 
     def test_has_descendant_process(self):
         """ Tests if a node has a descendant process. """
-        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+        graph = translate_process_graph(self.max_ndvi_pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
 
         dc_node = graph['load_collection_2']
         assert dc_node.has_descendant_process(graph, 'save_result')
 
     def test_to_igraph(self):
         """ Tests conversion of internal graph to an iGraph object. """
-        graph = translate_process_graph(self.max_ndvi_pg_filepath)
+        graph = translate_process_graph(self.max_ndvi_pg_filepath,process_defs=OPENEO_PROCESSES_ENDPOINT)
         graph.to_igraph(edge_name="process")
         assert True
 

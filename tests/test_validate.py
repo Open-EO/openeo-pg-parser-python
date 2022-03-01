@@ -2,6 +2,7 @@ import os
 import unittest
 from openeo_pg_parser.validate import validate_process_graph
 
+GEE_PROCESSES = "https://earthengine.openeo.org/v1.0/processes"
 
 class ValidateTester(unittest.TestCase):
     """  Testing the module `validate` for different process graph translations and validations. """
@@ -16,7 +17,7 @@ class ValidateTester(unittest.TestCase):
         collections_url = "https://earthengine.openeo.org/v1.0/collections"
         pg_filepath = os.path.join(self.pg_dirpath, "s2_max_ndvi.json")
 
-        valid, _ = validate_process_graph(pg_filepath, collections_url)
+        valid, _ = validate_process_graph(pg_filepath, collections_url,processes_src=GEE_PROCESSES)
 
         assert valid
 
@@ -24,7 +25,7 @@ class ValidateTester(unittest.TestCase):
         """ Validate a process graph using remote specified processes and collections. """
         pg_filepath = os.path.join(self.pg_dirpath, "s2_max_ndvi.json")
         valid, _ = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
-                                          processes_src="https://openeo.vito.be/openeo/1.0/processes")
+                                          processes_src=GEE_PROCESSES)
         assert valid
 
     def test_validate_wrong_band(self):
@@ -32,7 +33,7 @@ class ValidateTester(unittest.TestCase):
 
         pg_filepath = os.path.join(self.pg_dirpath, "s2_wrong_band.json")
         valid, _ = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
-                                          processes_src="https://openeo.vito.be/openeo/1.0/processes")
+                                          processes_src=GEE_PROCESSES)
 
         assert not valid
 
@@ -41,7 +42,7 @@ class ValidateTester(unittest.TestCase):
 
         pg_filepath = os.path.join(self.pg_dirpath, "s2_missing_bands.json")
         valid, _ = validate_process_graph(pg_filepath, "https://earthengine.openeo.org/v1.0/collections",
-                                          processes_src="https://openeo.vito.be/openeo/1.0/processes")
+                                          processes_src=GEE_PROCESSES)
 
         assert valid
 
